@@ -1,0 +1,8 @@
+numpy
+opencv-python
+rapidfuzz
+openpyxl
+mss
+frida
+sudachipy
+sudachidict_core

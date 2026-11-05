@@ -1,0 +1,273 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Live game text</title>
+<style>
+:root{--fond:#14161b;--carte:#1d2027;--ligne:#2b2f39;--texte:#eceef2;--doux:#9aa1ad;--accent:#e5383b;--en:#b9c3d6;--t:34px}
+:root[data-theme="clair"]{--fond:#f4f4f1;--carte:#fff;--ligne:#e1e1dc;--texte:#1b1c1f;--doux:#6a6f78;--accent:#c1121f;--en:#3f4a5e}
+*{box-sizing:border-box}
+body{margin:0;background:var(--fond);color:var(--texte);font-family:"Yu Gothic UI","Yu Gothic","Meiryo","Noto Sans JP",system-ui,sans-serif}
+header{display:flex;flex-wrap:wrap;gap:8px;align-items:center;padding:10px 16px;border-bottom:1px solid var(--ligne)}
+header b{color:var(--accent);letter-spacing:.04em}
+#statut{color:var(--doux);font-size:13px;flex:1;min-width:160px}
+button{background:var(--carte);color:var(--texte);border:1px solid var(--ligne);border-radius:6px;padding:5px 10px;font:inherit;font-size:13px;cursor:pointer}
+button.on{border-color:var(--accent);color:var(--accent)}
+main{max-width:1100px;margin:0 auto;padding:16px}
+#actuelle{background:var(--carte);border:1px solid var(--ligne);border-left:4px solid var(--accent);border-radius:8px;padding:18px 20px;min-height:140px}
+.perso{color:var(--doux);font-size:15px;margin-bottom:6px}
+#actuelle .jp{font-size:var(--t);line-height:2;white-space:pre-wrap}
+#actuelle .entxt{font-size:calc(var(--t)*.55);color:var(--en);margin-top:10px;line-height:1.45;white-space:pre-wrap}
+.sans-en .entxt,.sans-en .h-en{display:none}
+h2{font-size:13px;font-weight:600;color:var(--doux);text-transform:uppercase;letter-spacing:.08em;margin:22px 0 8px}
+#hist{display:flex;flex-direction:column;gap:6px}
+.h{background:var(--carte);border:1px solid var(--ligne);border-radius:6px;padding:8px 12px}
+.h .h-jp{font-size:calc(var(--t)*.55);white-space:pre-wrap}
+.h .h-en{color:var(--en);font-size:calc(var(--t)*.4);white-space:pre-wrap}
+.h .h-p{color:var(--doux);font-size:12px}
+#ocr{color:var(--doux);font-size:12px;margin-top:6px;min-height:1em;word-break:break-all}
+.vide{color:var(--doux)}
+.mot{cursor:help;border-radius:3px}
+.mot:hover{color:#ffd166}
+rt{font-size:.42em;color:var(--doux);font-weight:400}
+.sans-furi rt{display:none}
+.sans-perso .perso,.sans-perso .h-p{display:none}
+.sans-jp #actuelle .jp,.sans-jp .h-jp{display:none}
+#reg{background:var(--carte);border:1px solid var(--ligne);border-radius:8px;padding:10px 16px;margin-bottom:12px;display:flex;flex-wrap:wrap;gap:6px 20px;font-size:15px}
+#reg[hidden]{display:none}
+#reg b{width:100%;font-size:13px;color:var(--doux);font-weight:600;text-transform:uppercase;letter-spacing:.06em}
+#reg label{cursor:pointer}
+#reg input{accent-color:var(--accent)}
+#pop{position:fixed;z-index:9;display:none;max-width:460px;background:var(--carte);border:1px solid var(--accent);border-radius:6px;padding:8px 12px;font-size:15px;line-height:1.45;box-shadow:0 4px 18px rgba(0,0,0,.35)}
+#pop b{font-size:17px}
+#pop ol{margin:4px 0 0;padding-left:20px}
+#alerte{display:none;background:#5c1018;color:#fff;border:2px solid var(--accent);border-radius:8px;padding:10px 16px;margin-bottom:10px;font-size:17px;line-height:1.5}
+#alerte b{color:#ffd166}
+#obj{background:var(--carte);border:1px solid var(--ligne);border-radius:8px;padding:6px 18px 14px;margin-top:16px;font-size:15px;line-height:1.5}
+#obj label{display:flex;gap:8px;align-items:flex-start;padding:3px 0;cursor:pointer}
+#obj label.fait{color:var(--doux);text-decoration:line-through}
+#obj input{margin-top:5px;accent-color:var(--accent)}
+#obj .note{color:var(--doux);font-size:13px;margin:6px 0}
+.calbar{display:flex;flex-wrap:wrap;gap:8px;align-items:center;padding:10px 0;border-bottom:1px solid var(--ligne);position:sticky;top:0;background:var(--carte);z-index:2}
+.calbar select{background:var(--fond);color:var(--texte);border:1px solid var(--ligne);border-radius:6px;padding:5px 8px;font:inherit;font-size:14px}
+.calbar .fini{border-color:var(--accent);color:var(--accent)}
+.calbar .voir{color:var(--doux);font-size:13px;display:flex;gap:6px;align-items:center;margin-left:auto}
+.jour{padding:10px 0}
+.jour.suivant{opacity:.6;border-top:1px dashed var(--ligne)}
+.jtitre{font-size:18px;font-weight:700;color:#ffd166;margin-bottom:4px}
+.cr{margin:6px 0 4px}
+.crn{font-size:12px;font-weight:700;color:var(--accent);text-transform:uppercase;letter-spacing:.06em}
+.choix{color:var(--en);font-size:14px;padding:1px 0 1px 28px}
+.sep{height:6px}
+@media (max-width:600px){:root{--t:24px}}
+</style>
+</head>
+<body>
+<header>
+  <button id="bHub" title="Back to the game list">← Games</button>
+  <b id="jeu">…</b>
+  <span id="statut">connexion…</span>
+  <button id="bReg" title="Key S">Settings</button>
+  <button id="bEn" title="Key E">English</button>
+  <button id="bFuri" title="Key F">Furigana</button>
+  <button id="bObj" title="Key O" hidden>Calendar</button>
+  <button id="bMoins">A−</button><button id="bPlus">A+</button>
+  <button id="bTheme">Theme</button>
+</header>
+<main>
+  <section id="reg" hidden></section>
+  <div id="alerte"></div>
+  <div id="actuelle"><div class="vide">Waiting for a text box…</div></div>
+  <div id="ocr"></div>
+  <section id="obj" hidden></section>
+  <h2>Earlier</h2>
+  <div id="hist"></div>
+</main>
+<div id="pop"></div>
+<script>
+const $ = id => document.getElementById(id);
+const pref = (k, d) => { try { const v = localStorage.getItem('td_' + k); return v === null ? d : JSON.parse(v); } catch (e) { return d; } };
+const garder = (k, v) => { try { localStorage.setItem('td_' + k, JSON.stringify(v)); } catch (e) {} };
+let P = {obj: pref('obj_on', true), suiv: pref('suiv', true), en: pref('en', true), furi: pref('furi', true), t: pref('t', 34), theme: pref('theme', 'sombre')};
+let derniere = null;
+// what to show for this game: saved by the app (one set per game), shared with the window over the game
+let R = {speaker: true, jp: true, en: true, furi: true, kanji: true, dico: true}, R_txt = '';
+const REG = [['speaker', 'Speaker name'], ['jp', 'Japanese'], ['en', 'English'], ['furi', 'Furigana'],
+             ['kanji', 'Kanji version (when the table has one)'], ['dico', 'Dictionary on hover']];
+async function setReg(k, v) {
+  R[k] = v; appliquer();
+  try { await fetch('/api/display', {method: 'POST', body: JSON.stringify({display: {[k]: v}})}); } catch (e) {}
+}
+function dessinerReg() {
+  $('reg').innerHTML = '<b>Settings for this game (also used by the window over the game)</b>' + REG.map(([k, t]) =>
+    `<label><input type="checkbox" data-r="${k}"${R[k] ? ' checked' : ''}> ${t}</label>`).join('');
+}
+
+function appliquer() {
+  document.body.classList.toggle('sans-en', !R.en);
+  $('bEn').classList.toggle('on', R.en);
+  document.body.classList.toggle('sans-furi', !R.furi);
+  $('bFuri').classList.toggle('on', R.furi);
+  document.body.classList.toggle('sans-perso', !R.speaker);
+  document.body.classList.toggle('sans-jp', !R.jp);
+  dessinerReg();
+  if (derniere) montrer(derniere);
+  document.documentElement.style.setProperty('--t', P.t + 'px');
+  document.documentElement.dataset.theme = P.theme;
+  for (const k in P) garder(k === 'obj' ? 'obj_on' : k, P[k]);
+}
+const esc = s => (s || '').replace(/[&<>]/g, c => ({'&': '&amp;', '<': '&lt;', '>': '&gt;'}[c]));
+// japonais mot par mot : furigana (<ruby>) et définition au survol
+let DEFS = [];
+const jpTexte = b => R.kanji && b.jp_k ? b.jp_k : b.jp;
+function japonais(b) {
+  const mots = R.kanji && b.mots_k ? b.mots_k : b.mots;
+  if (!mots) return esc(jpTexte(b));
+  DEFS = [];
+  return mots.map(m => {
+    if (m.t === '\n') return '<br>';
+    const h = m.f.map(([t, r]) => r ? `<ruby>${esc(t)}<rt>${esc(r)}</rt></ruby>` : esc(t)).join('');
+    if (!m.d) return h;
+    DEFS.push(m.d);
+    return `<span class="mot" data-d="${DEFS.length - 1}">${h}</span>`;
+  }).join('');
+}
+function bulle(e) {
+  const s = e.target.closest('.mot'), p = $('pop');
+  if (!s || !R.dico) { p.style.display = 'none'; return; }
+  p.innerHTML = DEFS[+s.dataset.d].map(x =>
+    `<b>${esc(x.mot)}</b>${x.lect && x.lect !== x.mot ? ' 【' + esc(x.lect) + '】' : ''}<ol>${x.sens.map(g => '<li>' + esc(g) + '</li>').join('')}</ol>`).join('');
+  p.style.display = 'block';
+  const r = s.getBoundingClientRect();
+  p.style.left = Math.max(8, Math.min(r.left, innerWidth - p.offsetWidth - 8)) + 'px';
+  p.style.top = (r.bottom + 6 + p.offsetHeight > innerHeight ? r.top - p.offsetHeight - 6 : r.bottom + 6) + 'px';
+}
+const perso = b => (b.perso_jp || b.perso_en) ? esc(b.perso_jp) + (b.perso_en ? ' · ' + esc(b.perso_en) : '') : '';
+
+
+// ===== Calendar: day-by-day guide (GameFAQs pages saved in Games\<game>\guide_gamefaqs) + warnings at key choices
+const OBJ = {P5R: {
+  // [text that shows up in the game, what to pick]
+  alertes: [
+    ['怪盗団事件の共犯者よね', 'answer <b>知らない</b> (Never heard of them), then <b>協力者などいない</b> (There were no such people).'],
+    ['本当にこの選択でいいのだろうか', 'Bad ending route! Pick <b>ちがう気が…</b> (I can\'t be...).'],
+    ['本当にそれは、正しい世界だろうか', 'Pick <b>断る</b> (I refuse). いいだろう… = bad ending.'],
+    ['明智の目は笑っていない', 'Pick <b>明智は好敵手だ</b> (You\'re my rival).'],
+    ['もう会うことはないのだろうか', 'Pick <b>約束を果たしたい</b> (I want to keep our promise).'],
+    ['仲間もこの現実を望んでる', 'Pick <b>この現実は認めない</b> (I can\'t accept this reality). この現実を認めよう = bad ending.'],
+    ['丸喜と戦い、勝てば元の現実', 'Pick <b>丸喜と戦おう</b> (We\'re stopping Maruki). 丸喜の現実で生きていく = bad ending.'],
+    ['丸喜の現実で生きていく', 'Pick <b>丸喜と戦おう</b> (We\'re stopping Maruki).']]
+}};
+let OBJ_JEU = null;
+const coches = pref('obj', {});
+let CAL = [], CAL_I = pref('cal_i', 0);
+async function objectifs(jeu) {
+  if (!jeu || OBJ_JEU === jeu) return;
+  OBJ_JEU = jeu; CAL = [];
+  try { CAL = await (await fetch('/guide')).json(); } catch (e) {}
+  if (!CAL.length && !OBJ[jeu]) { $('bObj').hidden = true; $('obj').hidden = true; return; }
+  $('bObj').hidden = false; dessinerCal();
+  $('obj').hidden = !P.obj; $('bObj').classList.toggle('on', P.obj);
+}
+function jourHTML(i, plein) {
+  const d = CAL[i];
+  return `<div class="jour${plein ? '' : ' suivant'}"><div class="jtitre">${esc(d.j)}${plein ? '' : ' <span class="note">next day</span>'}</div>`
+    + d.c.map(([n, its]) => `<div class="cr"><div class="crn">${esc(n)}</div>` + its.map((t, k) => {
+      if (t === '-') return '<div class="sep"></div>';
+      if (/^(\(Phone\) )?Choice/.test(t)) return `<div class="choix">${t}</div>`;
+      const key = d.j + '|' + n + '|' + k;
+      return `<label class="${coches[key] ? 'fait' : ''}"><input type="checkbox" data-k="${esc(key)}"${coches[key] ? ' checked' : ''}><span>${t}</span></label>`;
+    }).join('') + '</div>').join('') + '</div>';
+}
+function dessinerCal() {
+  if (!CAL.length) {
+    $('obj').innerHTML = '<p class="note">No guide found: save the GameFAQs walkthrough pages (Ctrl+S) in Games\&lt;game&gt;\guide_gamefaqs in the Script Overlay folder. The warnings at key choices still work.</p>'; return;
+  }
+  CAL_I = Math.max(0, Math.min(CAL.length - 1, CAL_I)); garder('cal_i', CAL_I);
+  let opts = '', m = null;
+  CAL.forEach((d, i) => {
+    if (d.m !== m) { opts += (m ? '</optgroup>' : '') + `<optgroup label="${esc(d.m)}">`; m = d.m; }
+    opts += `<option value="${i}"${i === CAL_I ? ' selected' : ''}>${esc(d.j)}</option>`;
+  });
+  $('obj').innerHTML = `<div class="calbar"><button data-c="-1" title="Previous day">◀</button><select id="calSel">${opts}</optgroup></select>`
+    + `<button data-c="1" title="Next day">▶</button><button data-c="1" class="fini">Day done</button>`
+    + `<label class="voir"><input type="checkbox" id="calSuiv"${P.suiv ? ' checked' : ''}> show next day</label></div>`
+    + jourHTML(CAL_I, true) + (P.suiv && CAL_I + 1 < CAL.length ? jourHTML(CAL_I + 1, false) : '')
+    + '<p class="note">From the GameFAQs walkthrough pages you saved. Ticks and the current day are saved in this browser.</p>';
+}
+function alerte(b) {
+  const o = OBJ[OBJ_JEU], a = o && b ? o.alertes.find(([t]) => (b.jp || '').includes(t)) : null;
+  if (a) { $('alerte').innerHTML = '⚠ Important choice: ' + a[1]; $('alerte').style.display = 'block'; }
+  else if (b) $('alerte').style.display = 'none';
+}
+
+function afficher(d) {
+  objectifs(d.jeu);
+  $('jeu').textContent = d.nom || d.jeu;
+  if (!d.jeu) { $('statut').textContent = 'No game running: go back to the game list.'; return; } $('statut').textContent = d.statut;
+  $('ocr').textContent = d.ocr ? 'Text read but not found in the table: ' + d.ocr : '';
+  if (d.reglages && JSON.stringify(d.reglages) !== R_txt) { R_txt = JSON.stringify(d.reglages); Object.assign(R, d.reglages); appliquer(); }
+  HIST = d.historique || [];
+  const b = d.actuelle;
+  if (b && (!derniere || b.i !== derniere.i || b.heure !== derniere.heure)) {
+    derniere = b; alerte(b); montrer(b);
+  }
+}
+let HIST = [];
+function montrer(b) {
+  {
+    $('actuelle').innerHTML = `<div class="perso">${perso(b)}</div><div class="jp">${japonais(b)}</div><div class="entxt">${esc(b.en)}</div>`;
+    const h = $('hist'); h.innerHTML = '';
+    HIST.slice(0, -1).reverse().slice(0, 30).forEach(x => {
+      const e = document.createElement('div'); e.className = 'h';
+      e.innerHTML = `<div class="h-p">${perso(x)}</div><div class="h-jp">${esc(jpTexte(x))}</div><div class="h-en">${esc(x.en)}</div>`;
+      h.appendChild(e);
+    });
+  }
+}
+
+async function boucle() {
+  let n = -1;
+  for (;;) {
+    try {
+      const r = await fetch('/etat?n=' + n); const j = await r.json();
+      n = j.n; afficher(j.d);
+    } catch (e) {
+      $('statut').textContent = 'app closed: start Script Overlay again'; await new Promise(r => setTimeout(r, 2000));
+    }
+  }
+}
+
+$('bHub').onclick = () => { location.href = '/'; };
+$('bEn').onclick = () => setReg('en', !R.en);
+$('bFuri').onclick = () => setReg('furi', !R.furi);
+$('bReg').onclick = () => { $('reg').hidden = !$('reg').hidden; $('bReg').classList.toggle('on', !$('reg').hidden); };
+$('reg').addEventListener('change', e => { const k = e.target.dataset.r; if (k) setReg(k, e.target.checked); });
+$('actuelle').addEventListener('mouseover', bulle);
+$('actuelle').addEventListener('mouseleave', () => { $('pop').style.display = 'none'; });
+$('bMoins').onclick = () => { P.t = Math.max(16, P.t - 2); appliquer(); };
+$('bPlus').onclick = () => { P.t = Math.min(72, P.t + 2); appliquer(); };
+$('bObj').onclick = () => { P.obj = !P.obj; $('obj').hidden = !P.obj; $('bObj').classList.toggle('on', P.obj); appliquer(); };
+$('obj').addEventListener('click', e => {
+  const b = e.target.closest('button[data-c]'); if (!b) return;
+  CAL_I += +b.dataset.c; dessinerCal(); $('obj').scrollIntoView({block: 'start'});
+});
+$('obj').addEventListener('change', e => {
+  if (e.target.id === 'calSel') { CAL_I = +e.target.value; dessinerCal(); return; }
+  if (e.target.id === 'calSuiv') { P.suiv = e.target.checked; appliquer(); dessinerCal(); return; }
+  const k = e.target.dataset.k; if (!k) return;
+  coches[k] = e.target.checked; garder('obj', coches); e.target.parentElement.classList.toggle('fait', e.target.checked);
+});
+$('bTheme').onclick = () => { P.theme = P.theme === 'clair' ? 'sombre' : 'clair'; appliquer(); };
+document.addEventListener('keydown', e => {
+  if (e.ctrlKey || e.altKey || e.metaKey) return;
+  if (e.key.toLowerCase() === 'e') $('bEn').click();
+  if (e.key.toLowerCase() === 's') $('bReg').click();
+  if (e.key.toLowerCase() === 'f') $('bFuri').click();
+  if (e.key.toLowerCase() === 'o' && !$('bObj').hidden) $('bObj').click();
+});
+appliquer(); boucle();
+</script>
+</body>
+</html>

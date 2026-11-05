@@ -1,0 +1,25 @@
+{
+ "version": 1,
+ "games": [
+  {
+   "id": "p5r",
+   "name": "Persona 5 Royal (PC)",
+   "table": {
+    "url": "",
+    "file": "P5R.sop",
+    "sha256": ""
+   },
+   "columns": {
+    "jp": "Texte JP",
+    "en": "Texte EN",
+    "speaker_jp": "Perso JP",
+    "speaker_en": "Perso EN",
+    "group": "Fichier",
+    "id": "ID"
+   },
+   "hook": "p5r",
+   "code": "P5R",
+   "folder": "Persona 5 Royal"
+  }
+ ]
+}

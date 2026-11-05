@@ -1,0 +1,29 @@
+# user data (tables copied or downloaded, settings, OCR model, logs)
+data/
+build/
+dist/
+*.spec
+__pycache__/
+*.pyc
+_sauvegardes/
+/ScriptOverlay.exe
+/_internal/
+
+# dialogue tables of the games (personal, not shared), wherever they are
+*.xlsx
+*.xlsm
+*.csv
+*.tsv
+~$*
+Games/*/*.txt
+# saved GameFAQs pages (their authors' work)
+guide_gamefaqs/
+
+# personal settings of Script Viewer (paths, log)
+Script Viewer/config.lua
+*.zip
+# game files (.sop = the dialogues of a table, packed)
+*.sop
+/release/
+# copy of Tesseract (Apache 2.0), added to the release zip by release.bat
+/Tesseract/

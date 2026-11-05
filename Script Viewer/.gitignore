@@ -1,0 +1,12 @@
+# réglages personnels (chemins, journal)
+config.lua
+# sauvegardes locales
+_sauvegardes/
+*.zip
+# tableaux des dialogues (perso)
+Games/*/*.xlsx
+Games/*/*.xlsm
+Games/*/*.csv
+Games/*/*.tsv
+Games/*/*.txt
+Games/*/~$*

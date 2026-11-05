@@ -1,0 +1,4 @@
+{
+ "p5r": {"name": "Persona 5 Royal (PC, Steam)", "type": "frida", "process": ["P5R.exe"],
+         "libs": ["libPCAtlus.js"], "script": "p5r.js"}
+}

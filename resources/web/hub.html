@@ -1,0 +1,126 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Script Overlay</title>
+<style>
+:root{--fond:#14161b;--carte:#1d2027;--ligne:#2b2f39;--texte:#eceef2;--doux:#9aa1ad;--accent:#e5383b;--ok:#5cc28a}
+:root[data-theme="clair"]{--fond:#f4f4f1;--carte:#fff;--ligne:#e1e1dc;--texte:#1b1c1f;--doux:#6a6f78;--accent:#c1121f;--ok:#2e8b57}
+*{box-sizing:border-box}
+body{margin:0;background:var(--fond);color:var(--texte);font-family:"Segoe UI","Yu Gothic UI",system-ui,sans-serif}
+header{display:flex;gap:10px;align-items:center;padding:12px 16px;border-bottom:1px solid var(--ligne)}
+header b{color:var(--accent);letter-spacing:.04em;font-size:18px}
+header span{color:var(--doux);font-size:13px;flex:1}
+main{max-width:900px;margin:0 auto;padding:16px}
+button,select,input[type=text]{background:var(--carte);color:var(--texte);border:1px solid var(--ligne);border-radius:6px;padding:6px 12px;font:inherit;font-size:14px}
+button{cursor:pointer}
+button.main{border-color:var(--accent);color:var(--accent);font-weight:600}
+button:disabled{opacity:.5;cursor:default}
+h2{font-size:13px;font-weight:600;color:var(--doux);text-transform:uppercase;letter-spacing:.08em;margin:24px 0 8px}
+#run{display:none;background:var(--carte);border:1px solid var(--accent);border-left:4px solid var(--accent);border-radius:8px;padding:12px 16px;align-items:center;gap:10px;flex-wrap:wrap}
+#run b{flex:1}
+.jeu{display:flex;gap:12px;align-items:center;flex-wrap:wrap;background:var(--carte);border:1px solid var(--ligne);border-radius:8px;padding:12px 16px;margin-bottom:8px}
+.jeu .nom{font-size:17px;font-weight:600;flex:1;min-width:200px}
+.jeu .info{color:var(--doux);font-size:13px;font-weight:400;margin-top:2px}
+.tag{font-size:11px;border:1px solid var(--ligne);border-radius:4px;padding:1px 6px;color:var(--doux);margin-right:4px}
+.tag.ok{color:var(--ok);border-color:var(--ok)}
+.carte{background:var(--carte);border:1px solid var(--ligne);border-radius:8px;padding:14px 16px}
+.grille{display:grid;grid-template-columns:auto 1fr;gap:6px 12px;align-items:center;margin:10px 0}
+.note{color:var(--doux);font-size:13px;line-height:1.5}
+#msg{min-height:1.4em;margin:10px 0;color:var(--accent)}
+label{cursor:pointer}
+#aide p{margin:0 0 10px;line-height:1.5}
+@media (max-width:600px){.grille{grid-template-columns:1fr}}
+</style>
+</head>
+<body>
+<header><b>Script Overlay</b><span id="ver"></span><button id="bTheme">Theme</button></header>
+<main>
+  <div id="aide" class="carte">
+    <p>Script Overlay shows what the game is saying: the Japanese (with furigana and a dictionary on hover) and the English, in a web page and in a small window over the game.
+      What is shown is specific to each game and can be adjusted (Settings on the text page).</p>
+    <p><span class="tag">Emulator Script</span> A script in the emulator sends the text. Click Start, then load the script in the emulator.</p>
+    <p><span class="tag">Game Hook</span> The app reads the text straight from the game. Click Start and run the game.</p>
+    <p style="margin-bottom:0"><span class="tag">OCR</span> The app reads the dialogue box on screen. Click Start and draw a rectangle around the dialogue box once.</p>
+  </div>
+  <div id="run"><b id="runNom"></b><button class="main" onclick="location.href='/live'">Live text</button><button onclick="stop()">Stop</button></div>
+  <div id="msg"></div>
+  <div id="emu" class="carte" hidden></div>
+  <h2>Games</h2>
+  <div id="jeux"><div class="note">Loading…</div></div>
+  <input type="file" id="fTable" accept=".xlsx,.csv,.tsv,.sop" hidden>
+
+  <h2>Options</h2>
+  <div class="carte">
+    <p class="note" id="tess"></p>
+    <p class="note">The English also shows in a small window over the game (right-click it for its menu). Run games in windowed or borderless fullscreen.</p>
+  </div>
+</main>
+<script>
+const $ = id => document.getElementById(id);
+const esc = s => String(s ?? '').replace(/[&<>"]/g, c => ({'&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;'}[c]));
+let theme = 'sombre'; try { theme = localStorage.getItem('td_theme') ? JSON.parse(localStorage.getItem('td_theme')) : 'sombre'; } catch (e) {}
+document.documentElement.dataset.theme = theme;
+$('bTheme').onclick = () => { theme = theme === 'clair' ? 'sombre' : 'clair'; document.documentElement.dataset.theme = theme; try { localStorage.setItem('td_theme', JSON.stringify(theme)); } catch (e) {} };
+
+let D = null, attente = null;
+const msg = t => { $('msg').textContent = t || ''; };
+async function post(url, data, raw) {
+  const r = await fetch(url, {method: 'POST', body: raw ? data : JSON.stringify(data || {})});
+  const j = await r.json(); if (j.error) throw new Error(j.error); return j;
+}
+async function charger() {
+  D = await (await fetch('/api/games')).json();
+  $('ver').textContent = 'v' + D.version;
+  $('tess').textContent = D.tesseract ? 'OCR: Tesseract found.' : 'OCR needs Tesseract for Windows (UB Mannheim): install it, then start a game.';
+  $('run').style.display = D.running ? 'flex' : 'none';
+  $('runNom').textContent = D.running ? 'Now running: ' + D.running.name : '';
+  $('jeux').innerHTML = D.games.length ? '' : '<div class="note">No game yet: add one below.</div>';
+  for (const g of D.games) {
+    const e = document.createElement('div'); e.className = 'jeu';
+    e.innerHTML = `<div class="nom">${esc(g.name)}<div class="info">${g.ready ? '' : `<span class="tag">${esc(g.status)}</span>`}<span class="tag">${g.mode === 'hook' ? 'Game Hook' : g.mode === 'emulator' ? 'Emulator Script' : 'OCR'}</span></div></div>`;
+    const b = (t, f, cls) => { const x = document.createElement('button'); x.textContent = t; x.onclick = f; if (cls) x.className = cls; e.appendChild(x); return x; };
+    const s = b(D.running && D.running.id === g.id ? 'Live text' : 'Start', () => D.running && D.running.id === g.id ? location.href = '/live' : start(g), 'main');
+    if (g.mode === 'ocr' && g.has_region) b('New text box', () => option({id: g.id, reset_region: true}, 'The text box will be asked again at the next start.'));
+    if (g.can_remove) b('Remove', () => { if (confirm(g.source === 'local' ? `Remove "${g.name}" and its copied table?` : `Delete the downloaded table of "${g.name}"?`)) option({id: g.id}, '', '/api/remove'); });
+    $('jeux').appendChild(e);
+  }
+}
+async function option(data, done, url) {
+  try { await post(url || '/api/options', data); msg(done); charger(); } catch (e) { msg(e.message); }
+}
+async function start(g) {
+  msg('Starting ' + g.name + '…');
+  try {
+    const j = await post('/api/start', {id: g.id});
+    if (j.need_table) { attente = g; msg(`Choose the table file of ${g.name} (once).`); $('fTable').click(); return; }
+    if (j.emulator) { emulateur(j.emulator); msg(''); return; }
+    $('emu').hidden = true;
+    msg(j.message || '');
+    if (j.ok) location.href = '/live';
+  } catch (e) { msg(e.message); }
+}
+// games read by the emulator's own script: the text page opens in another tab, here is what to do in the emulator
+function emulateur(e) {
+  $('emu').innerHTML = `<b>${esc(e.game)}: use ${esc(e.name)}</b>
+    <ol class="note">
+      <li>Start ${esc(e.name)} and open the game.</li>
+      <li>In ${esc(e.name)}: Tools &gt; Scripting &gt; File &gt; Load script &gt;<br>Pick <b>script_viewer.lua</b> in <b>Script Overlay\\Script Viewer\\script_viewer.lua</b><br>
+        <span class="note">Full path: <code id="emuScript">${esc(e.script)}</code> <button onclick="navigator.clipboard.writeText($('emuScript').textContent)">Copy path</button> (next times: File &gt; Recent scripts)</span></li>
+      <li>The text page has just opened in a new tab: it says “mGBA: connected” once the script runs.</li>
+    </ol>`;
+  $('emu').hidden = false;
+}
+async function stop() { await post('/api/stop'); msg(''); charger(); }
+$('fTable').onchange = async () => {
+  const f = $('fTable').files[0]; $('fTable').value = ''; if (!f || !attente) return;
+  msg('Copying the table…');
+  try { await post('/api/upload?id=' + encodeURIComponent(attente.id) + '&name=' + encodeURIComponent(f.name), await f.arrayBuffer(), true); start(attente); }
+  catch (e) { msg(e.message); }
+};
+charger();
+setInterval(() => { if (document.visibilityState === 'visible') charger().catch(() => msg('App closed: start Script Overlay again.')); }, 4000);
+</script>
+</body>
+</html>

@@ -1,0 +1,1245 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Script Viewer</title>
+<!-- Script Viewer: standalone local page, opened by script_viewer.lua, or by hand in Chrome / Edge. No server to install. -->
+<script src="lib/xlsx.full.min.js"></script>
+<style>
+:root{--bg:#f6f5f2;--card:#fff;--ink:#1d1d1f;--mute:#6b6b70;--line:#dedcd6;--acc:#2f6fd6;--accbg:#e7effc;--ok:#2e8b57;--bad:#c0392b;
+  --jp:44px;--kana:20px;--en:20px;--hist:15px;--font-jp:"Yu Mincho","Hiragino Mincho ProN","Noto Serif JP",serif}
+@media (prefers-color-scheme:dark){:root:not([data-theme=light]){--bg:#17181b;--card:#222327;--ink:#ececec;--mute:#9a9aa0;--line:#35363b;--acc:#7aa7ff;--accbg:#26324a}}
+:root[data-theme=dark]{--bg:#17181b;--card:#222327;--ink:#ececec;--mute:#9a9aa0;--line:#35363b;--acc:#7aa7ff;--accbg:#26324a}
+:root[data-sans]{--font-jp:"Yu Gothic UI","Meiryo","Hiragino Sans","Noto Sans JP",sans-serif}
+*{box-sizing:border-box}
+html,body{margin:0;min-height:100%}
+body{background:var(--bg);color:var(--ink);font:15px/1.45 system-ui,"Segoe UI",sans-serif}
+button,select,input{font:inherit;color:inherit}
+button{background:var(--card);border:1px solid var(--line);border-radius:7px;padding:5px 11px;cursor:pointer}
+button:hover{border-color:var(--acc)}
+button.pri{background:var(--acc);border-color:var(--acc);color:#fff}
+button.on{background:var(--accbg);border-color:var(--acc)}
+select,input[type=text],input[type=number]{background:var(--card);border:1px solid var(--line);border-radius:7px;padding:5px 8px}
+header{display:flex;flex-wrap:wrap;gap:8px;align-items:center;padding:8px 12px;border-bottom:1px solid var(--line);background:var(--card)}
+header .grow{flex:1}
+.pill{font-size:12px;padding:2px 9px;border-radius:99px;border:1px solid var(--line);color:var(--mute);white-space:nowrap;max-width:100%;overflow:hidden;text-overflow:ellipsis}
+.pill.ok{color:var(--ok);border-color:var(--ok)}.pill.bad{color:var(--bad);border-color:var(--bad)}
+main{padding:22px 26px;display:grid;grid-template-columns:minmax(0,1fr);gap:26px;align-items:start}
+main.with-infos{grid-template-columns:minmax(0,1fr) minmax(360px,520px)}
+@media (max-width:1000px){main.with-infos{grid-template-columns:minmax(0,1fr)}}
+#infos{background:var(--card);border:1px solid var(--line);border-radius:12px;overflow:hidden}
+#infos .tabs{display:flex;border-bottom:1px solid var(--line)}
+#infos .tabs button{flex:1;border:0;border-radius:0;background:none;padding:8px 4px;color:var(--mute);border-bottom:2px solid transparent}
+#infos .tabs button.on{color:var(--ink);border-bottom-color:var(--acc);font-weight:600}
+#infos .tabs button.alert{color:var(--bad)}
+#ibody{padding:12px 14px;max-height:calc(100vh - 120px);overflow:auto}
+.mon{border-bottom:1px solid var(--line);padding:9px 0}
+.mon:last-child{border-bottom:0}
+.mon .top{display:flex;align-items:baseline;gap:8px;flex-wrap:wrap}
+.mon .nm{font-family:var(--font-jp);font-size:18px;font-weight:600}
+.mon .sub{color:var(--mute);font-size:12px}
+.lv{font-size:13px;margin-left:auto;color:var(--mute)}
+.hp{height:6px;border-radius:3px;background:var(--line);margin:5px 0 3px;overflow:hidden}
+.hp i{display:block;height:100%;background:#3aa76d}
+.hp i.mid{background:#e0a020}.hp i.low{background:#d64545}
+.ty{display:inline-block;font-size:11px;padding:0 7px;border-radius:99px;color:#fff;margin-right:3px;font-family:var(--font-jp);line-height:18px}
+table.mv{width:100%;border-collapse:collapse;font-size:13px;margin-top:4px}
+table.mv td{padding:2px 4px;border-top:1px dashed var(--line)}
+table.mv td.j{font-family:var(--font-jp)}
+table.mv td.n{text-align:right;color:var(--mute);white-space:nowrap}
+.x2{color:#c0392b;font-weight:600}.x4{color:#c0392b;font-weight:700}.x05{color:var(--mute)}.x0{color:var(--mute);text-decoration:line-through}
+.small{font-size:12px;color:var(--mute)}
+.sec{margin:12px 0 4px;font-size:11px;text-transform:uppercase;letter-spacing:.06em;color:var(--mute)}
+.map{position:relative;width:100%;max-width:480px}
+.map img{width:100%;display:block;image-rendering:pixelated;border-radius:6px}
+.map.region{max-width:300px}
+.map.local img{border-radius:4px}
+.map .me{position:absolute;width:14px;height:14px;margin:-7px 0 0 -7px;border-radius:50%;background:#e33;border:2px solid #fff;box-shadow:0 0 0 2px #e33;animation:pulse 1.2s infinite}
+@keyframes pulse{50%{transform:scale(.65)}}
+.map .ev{position:absolute;width:calc(9px * var(--dot,1));height:calc(9px * var(--dot,1));margin:calc(-5px * var(--dot,1)) 0 0 calc(-5px * var(--dot,1));border:1.5px solid #fff;box-shadow:0 0 0 1px #0006;border-radius:50%;cursor:help}
+.map .ev.w{background:#2a7de1;border-radius:2px}
+.map .ev.i{background:#f5c400}
+.map .ev.h{background:#f5c400;border:2px dashed #6a3d00;box-shadow:0 0 0 1px #fff}
+.map .ev.t{background:#e0602a;border-radius:1px;transform:rotate(45deg)}
+.map .ev.p{background:#2fa84f}
+.map .ev.p.c{border-style:dashed;opacity:.75}
+.map .ev.done{opacity:.3;filter:grayscale(1)}
+.legend{display:flex;flex-wrap:wrap;gap:4px 12px;font-size:11px;color:var(--mute);margin-top:5px}
+.legend i{display:inline-block;width:8px;height:8px;margin-right:4px;vertical-align:-1px;border-radius:50%}
+.evl{display:grid;grid-template-columns:1fr auto;gap:3px 10px;font-size:13px}
+.evl .j{font-family:var(--font-jp)}
+.evl .done{opacity:.45}
+.team{display:flex;flex-wrap:wrap;gap:4px 10px;font-size:12px;color:var(--mute);grid-column:1/-1;margin:-1px 0 4px}
+.team .j{font-family:var(--font-jp);color:var(--ink)}
+.ot{display:grid;grid-template-columns:repeat(auto-fill,minmax(120px,1fr));gap:6px;margin:4px 0 10px}
+.ot>div{border:1px solid var(--line);border-radius:8px;padding:4px 7px;font-size:12px}
+.ot .j{font-family:var(--font-jp);font-size:14px}
+.ot .cur{border-color:var(--acc);background:var(--accbg)}
+.ot .ko{opacity:.4}
+.ot .hp{margin-top:3px}
+.dexl{cursor:pointer;text-decoration:underline dotted #8888;text-underline-offset:3px}
+#dexBar{padding:8px 14px 0;display:flex;gap:6px}
+#dexBar[hidden]{display:none}
+#dexBar input{flex:1;min-width:0}
+.dex .cat{font-family:var(--font-jp);font-size:14px;margin-top:6px}
+.dex .txt{font-family:var(--font-jp);font-size:17px;line-height:1.7;white-space:pre-wrap;margin:10px 0;padding:10px 12px;background:var(--accbg);border-radius:8px}
+.place{font-family:var(--font-jp);font-size:20px;font-weight:600}
+.wild{display:grid;grid-template-columns:1fr auto;gap:2px 10px;font-size:13px}
+.wild .j{font-family:var(--font-jp)}
+.ok{color:var(--ok)}
+.bag{display:grid;grid-template-columns:1fr auto;gap:2px 10px;font-size:13px}
+.bag .j{font-family:var(--font-jp)}
+.tags{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:12px}
+.tag{font-size:13px;padding:2px 10px;border-radius:99px;background:var(--accbg)}
+.tag b{font-weight:600;color:var(--mute);margin-right:5px;font-size:11px}
+#cur .jp{font-family:var(--font-jp);font-size:var(--jp);line-height:1.5;white-space:pre-wrap;word-break:break-word}
+#cur .ln.on{background:var(--accbg);box-shadow:0 0 0 3px var(--accbg);border-radius:3px}
+#cur .kana{font-family:var(--font-jp);font-size:var(--kana);color:var(--mute);white-space:pre-wrap;margin-top:6px}
+#cur .en{font-size:var(--en);margin-top:16px;padding-top:12px;border-top:1px solid var(--line);white-space:pre-wrap}
+#cur .other{margin-top:14px;font-size:13px;color:var(--mute)}
+#cur .other div{margin:2px 0}
+#cur .raw{margin-top:14px;font-family:var(--font-jp);font-size:13px;color:var(--mute);white-space:pre-wrap}
+#cur .nomatch{font-size:12px;color:var(--mute);margin-top:10px}
+#cur .empty{color:var(--mute);font-size:18px;margin-top:40px;text-align:center;line-height:1.7}
+#hist{margin-top:28px}
+#hist h3{font-size:12px;text-transform:uppercase;letter-spacing:.06em;color:var(--mute);margin:0 0 6px}
+#hist .h{padding:6px 0;border-top:1px dashed var(--line);font-size:var(--hist)}
+#hist .h .j{font-family:var(--font-jp);white-space:pre-wrap}
+#hist .h .e{color:var(--mute);font-size:.9em;white-space:pre-wrap}
+.hide-en .en,.hide-en .e{display:none!important}
+dialog{border:1px solid var(--line);border-radius:12px;background:var(--card);color:var(--ink);padding:0;width:min(980px,96vw);max-height:92vh}
+dialog::backdrop{background:#0006}
+dialog .hd{padding:12px 16px;border-bottom:1px solid var(--line);display:flex;align-items:center;gap:10px}
+dialog .hd h2{margin:0;font-size:17px;flex:1}
+dialog .bd{padding:14px 16px;overflow:auto;max-height:calc(92vh - 120px)}
+dialog .ft{padding:10px 16px;border-top:1px solid var(--line);display:flex;gap:8px;justify-content:flex-end;align-items:center}
+dialog .ft .msg{flex:1;color:var(--mute);font-size:13px}
+.step{margin-bottom:18px}
+.step h4{margin:0 0 8px;font-size:14px}
+.row{display:flex;flex-wrap:wrap;gap:8px;align-items:center}
+#files{display:flex;flex-wrap:wrap;gap:6px;margin-top:8px;max-height:170px;overflow:auto}
+#files button{font-size:13px}
+#files button.sel{background:var(--accbg);border-color:var(--acc)}
+table.map{border-collapse:collapse;width:100%;font-size:13px}
+table.map td,table.map th{border-bottom:1px solid var(--line);padding:5px 6px;text-align:left;vertical-align:top}
+table.map th{color:var(--mute);font-weight:500}
+table.map td.s{color:var(--mute);max-width:420px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-family:var(--font-jp)}
+.note{color:var(--mute);font-size:12px}
+.grid{display:grid;grid-template-columns:auto 1fr;gap:8px 14px;align-items:center}
+.sz{display:flex;gap:4px;align-items:center}
+.sz span{min-width:34px;text-align:center;font-size:13px}
+.err{color:var(--bad)}
+@media (max-width:760px){main{padding:14px 16px}}
+</style>
+</head>
+<body>
+<header>
+  <span id="emuPill" class="pill" title="Link with mGBA">mGBA: connecting…</span>
+  <span id="gamePill" class="pill"></span>
+  <span id="jPill" class="pill" hidden></span>
+  <span class="grow"></span>
+  <span id="srcInfo" class="pill">no table</span>
+  <button id="bSetup" class="pri">Table…</button>
+  <button id="bEn" class="on" title="Show / hide English (E key)">English</button>
+  <button id="bSet" title="Settings">Settings</button>
+</header>
+<main id="main">
+  <div>
+    <div id="cur"></div>
+    <div id="hist"></div>
+  </div>
+  <aside id="infos" hidden>
+    <div class="tabs" id="tabs"></div>
+    <div id="dexBar" hidden><input id="dexQ" list="dexList" placeholder="Search a Pokémon (no., Japanese or English name)" autocomplete="off"><button id="dexAuto" title="Back to the battle / party Pokémon">Current</button><datalist id="dexList"></datalist></div>
+    <div id="ibody"></div>
+  </aside>
+</main>
+
+<dialog id="dSetup">
+  <div class="hd"><h2 id="setupTitle">Game table</h2><button data-close>✕</button></div>
+  <div class="bd">
+    <p class="note" id="setupFor"></p>
+    <div class="step">
+      <h4>1. The table</h4>
+      <div class="row">
+        <button id="bDir">Choose the scripts folder…</button>
+        <button id="bFile">…or a file</button>
+        <input id="inFile" type="file" accept=".sop,.xlsx,.xlsm,.xls,.ods,.csv,.tsv,.txt" hidden>
+        <input id="inDir" type="file" webkitdirectory hidden>
+        <span id="dirName" class="note"></span>
+      </div>
+      <div id="files"></div>
+    </div>
+    <div class="step" id="stSheet" hidden>
+      <h4>2. The sheet and the header row</h4>
+      <div class="row">
+        <select id="sheet"></select>
+        <label>Headers on row <input id="hdrRow" type="number" min="0" style="width:70px"></label>
+        <span class="note">0 = no header row</span>
+      </div>
+    </div>
+    <div class="step" id="stMap" hidden>
+      <h4>3. Which column contains what</h4>
+      <table class="map"><thead><tr><th>Column</th><th>Title</th><th>Content</th><th>Example</th></tr></thead><tbody id="mapBody"></tbody></table>
+      <p class="note">Japanese = the text exactly as displayed in the game: it is what identifies the row. Kanji = the kanji version if you have one.
+        “Other” is shown in small text under the line.</p>
+      <label><input id="clean" type="checkbox" checked> Clean the game tags ({text_start}, &lt;LINE&gt;, &lt;DONE&gt;, @…); &lt;LINE&gt; &lt;PARA&gt; &lt;CONT&gt; become line breaks</label>
+    </div>
+    <div class="step" id="stName" hidden>
+      <h4>4. The game</h4>
+      <div class="row"><input id="gName" type="text" placeholder="Game name" style="width:320px"></div>
+    </div>
+  </div>
+  <div class="ft"><span class="msg" id="setupMsg"></span><button id="bUnlink" hidden>Stop using a table</button><button data-close>Cancel</button><button id="bSave" class="pri" disabled>Save</button></div>
+</dialog>
+
+<dialog id="dSet">
+  <div class="hd"><h2>Settings</h2><button data-close>✕</button></div>
+  <div class="bd">
+    <div class="step"><h4>Display</h4>
+      <div class="grid">
+        <span>Japanese shown</span>
+        <select id="jpMode"><option value="kanji">Kanji from the table (else game text)</option><option value="kana">Game text (kana)</option><option value="both">Kanji + kana below</option></select>
+        <span>Current line</span>
+        <select id="jpHl"><option value="1">Highlighted in the Japanese</option><option value="0">No highlighting</option></select>
+        <span>English</span>
+        <select id="enOneLine"><option value="0">Game line breaks</option><option value="1">On a single line</option></select>
+        <span>Labels</span>
+        <div class="row" id="tagsShow"><label><input type="checkbox" data-k="lieu"> Location</label><label><input type="checkbox" data-k="perso"> Speaker</label><label><input type="checkbox" data-k="type"> Type</label><label><input type="checkbox" data-k="id"> ID</label></div>
+        <span>Game text (kana)</span>
+        <select id="showRaw"><option value="0">Hidden when the line is found</option><option value="1">Always shown small</option></select>
+        <span>Game info</span>
+        <select id="showInfos"><option value="1">Shown (party, battle, location, Pokédex, bag)</option><option value="0">Hidden</option></select>
+        <span>Location tab</span>
+        <div class="row" id="lieuShow"><label><input type="checkbox" data-k="carte"> Map</label><label><input type="checkbox" data-k="objets"> Items</label><label><input type="checkbox" data-k="dresseurs"> Trainers</label><label><input type="checkbox" data-k="pnj"> Characters</label><label><input type="checkbox" data-k="dialogues"> Dialogue seen</label><label><input type="checkbox" data-k="equipes"> Their Pokémon</label><label><input type="checkbox" data-k="sorties"> Exits</label><label><input type="checkbox" data-k="region"> Region</label><label><input type="checkbox" data-k="sauvages"> Wild Pokémon</label></div>
+        <span>Map dots</span>
+        <select id="dotSize"><option value="1">Small</option><option value="1.5">Medium</option><option value="2">Large</option><option value="2.6">Very large</option></select>
+        <span>Info tab</span>
+        <select id="autoTab"><option value="1">Follows the game (Location, Party, Bag, Battle)</option><option value="0">The one I choose</option></select>
+        <span>Japanese font</span>
+        <select id="font"><option value="serif">Mincho (serif)</option><option value="sans">Gothic (sans)</option></select>
+        <span>Theme</span>
+        <select id="theme"><option value="">Same as system</option><option value="light">Light</option><option value="dark">Dark</option></select>
+        <span>Japanese size</span><div class="sz" data-v="jp"></div>
+        <span>Kana size</span><div class="sz" data-v="kana"></div>
+        <span>English size</span><div class="sz" data-v="en"></div>
+        <span>History size</span><div class="sz" data-v="hist"></div>
+        <span>History lines</span><input id="histN" type="number" min="0" max="50" style="width:70px">
+      </div>
+    </div>
+    <div class="step"><h4>mGBA addresses</h4>
+      <input id="emuUrl" type="text" style="width:100%">
+      <p class="note">Comma-separated, tried in order: 8890 = script_viewer.lua (port adjustable in config.lua).</p>
+    </div>
+  </div>
+  <div class="ft"><span class="msg"></span><button data-close class="pri">OK</button></div>
+</dialog>
+
+<script>
+"use strict";
+const $ = s => document.querySelector(s);
+const ROLES = [["", "—"], ["jp", "Japanese (game)"], ["kanji", "Kanji"], ["en", "English"], ["lieu", "Location"], ["perso", "Speaker"],
+  ["type", "Text type"], ["id", "ID"], ["uid", "UID"], ["chrono", "Timeline"], ["autre", "Other (show)"]];
+const ROLE_NAME = Object.fromEntries(ROLES);
+const LS = "sv_"; // préfixe localStorage
+
+function load(k, d) { try { const v = localStorage.getItem(LS + k); return v == null ? d : JSON.parse(v); } catch (e) { return d; } }
+function save(k, v) { try { localStorage.setItem(LS + k, JSON.stringify(v)); } catch (e) {} }
+
+// ---------------------------------------------------------------- dossier des scripts (handle gardé dans IndexedDB)
+function idb() {
+  return new Promise((ok, ko) => { const r = indexedDB.open("script_viewer", 1);
+    r.onupgradeneeded = () => r.result.createObjectStore("h"); r.onsuccess = () => ok(r.result); r.onerror = () => ko(r.error); });
+}
+async function idbGet(k) { try { const db = await idb(); return await new Promise(ok => { const r = db.transaction("h").objectStore("h").get(k); r.onsuccess = () => ok(r.result); r.onerror = () => ok(null); }); } catch (e) { return null; } }
+async function idbSet(k, v) { try { const db = await idb(); db.transaction("h", "readwrite").objectStore("h").put(v, k); } catch (e) {} }
+
+let dirHandle = null;      // dossier choisi (Chrome / Edge)
+let dirFiles = null;       // ou liste de File (autres navigateurs)
+const SCRIPT_EXT = /\.(sop|xlsx|xlsm|xls|ods|csv|tsv|txt)$/i;
+
+async function listDir() {
+  const out = [];
+  if (dirHandle) {
+    for await (const [name, h] of dirHandle.entries()) if (h.kind === "file" && SCRIPT_EXT.test(name) && !name.startsWith("~$")) out.push(name);
+  } else if (dirFiles) {
+    for (const f of dirFiles) if (SCRIPT_EXT.test(f.name) && !f.name.startsWith("~$") && f.webkitRelativePath.split("/").length === 2) out.push(f.name);
+  }
+  return out.sort((a, b) => a.localeCompare(b, "fr"));
+}
+async function getFile(name) {
+  if (dirHandle) return await (await dirHandle.getFileHandle(name)).getFile();
+  if (dirFiles) return [...dirFiles].find(f => f.name === name && f.webkitRelativePath.split("/").length === 2) || null;
+  return null;
+}
+async function ensurePerm(h) {
+  if (!h || !h.queryPermission) return false;
+  if (await h.queryPermission({ mode: "read" }) === "granted") return true;
+  return (await h.requestPermission({ mode: "read" })) === "granted";
+}
+
+// ---------------------------------------------------------------- lecture d'un tableau -> {sheets: {nom: lignes[][]}}
+// fichier de jeu .sop (fait par Script Overlay, script_overlay\pack.py) : 'SOP2' + nonce (16 octets) + zlib(JSON) brouillé
+async function readSop(buf) {
+  const b = new Uint8Array(buf);
+  if (String.fromCharCode(...b.subarray(0, 4)) !== "SOP2") throw new Error("Not a Script Overlay game file (or an old one).");
+  let seed = 0x811C9DC5;   // FNV-1a de la clé + nonce
+  for (const c of [...new TextEncoder().encode("ScriptOverlay/game-file/v1"), ...b.subarray(4, 20)]) seed = Math.imul(seed ^ c, 0x01000193) >>> 0;
+  const body = b.slice(20);
+  for (let k = 0; k * 4 < body.length; k++) {   // mot k = lowbias32(k ^ seed), 4 octets little-endian
+    let x = (k ^ seed) >>> 0;
+    x ^= x >>> 16; x = Math.imul(x, 0x7FEB352D) >>> 0; x ^= x >>> 15; x = Math.imul(x, 0x846CA68B) >>> 0; x ^= x >>> 16;
+    for (let j = 0; j < 4 && k * 4 + j < body.length; j++) body[k * 4 + j] ^= (x >>> (8 * j)) & 255;
+  }
+  const txt = await new Response(new Blob([body]).stream().pipeThrough(new DecompressionStream("deflate"))).text();
+  const d = JSON.parse(txt);
+  if (!d.sheets) throw new Error("This game file has no table for Script Viewer (made without --sheets).");
+  return { sheets: d.sheets };
+}
+async function readBook(file) {
+  const buf = await file.arrayBuffer();
+  const name = file.name.toLowerCase();
+  if (name.endsWith(".sop")) return readSop(buf);
+  if (/\.(txt|tsv|csv)$/.test(name)) {
+    const b = new Uint8Array(buf);
+    let text;
+    if (b[0] === 0xFF && b[1] === 0xFE) text = new TextDecoder("utf-16le").decode(b.subarray(2));
+    else if (b[0] === 0xFE && b[1] === 0xFF) text = new TextDecoder("utf-16be").decode(b.subarray(2));
+    else text = new TextDecoder("utf-8").decode(b[0] === 0xEF && b[1] === 0xBB && b[2] === 0xBF ? b.subarray(3) : b);
+    const first = text.slice(0, text.indexOf("\n") >>> 0);
+    if (first.includes("\t")) return { sheets: { [file.name]: text.split(/\r?\n/).map(l => l.split("\t")) } };
+    const wb = XLSX.read(text, { type: "string" });
+    return { sheets: { [file.name]: XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]], { header: 1, defval: "", raw: false }) } };
+  }
+  const wb = XLSX.read(buf, { type: "array", dense: true });
+  const sheets = {};
+  for (const n of wb.SheetNames) sheets[n] = XLSX.utils.sheet_to_json(wb.Sheets[n], { header: 1, defval: "", raw: false, blankrows: true });
+  return { sheets };
+}
+
+function colLetter(i) { let s = ""; i++; while (i > 0) { const m = (i - 1) % 26; s = String.fromCharCode(65 + m) + s; i = (i - m - 1) / 26; } return s; }
+
+function guessHeaderRow(rows) {
+  // première ligne non vide dont les cellules sont courtes et surtout du texte
+  for (let r = 0; r < Math.min(rows.length, 10); r++) {
+    const cells = (rows[r] || []).filter(c => String(c).trim() !== "");
+    if (cells.length >= 2 && cells.every(c => String(c).length <= 40 && !/[。、！？]/.test(c))) return r + 1;
+    if (cells.length >= 2) return 0;
+  }
+  return 0;
+}
+function guessRole(title, samples) {
+  const t = String(title || "").trim().toLowerCase();
+  if (/^(kanji)/.test(t)) return "kanji";
+  if (/^(jap|japonais|jp|ja|japanese|日本語|texte jp|dialogue jp)$/.test(t) || /^jp\b/.test(t) && !/ocr|adresse/.test(t)) return "jp";
+  if (/^(eng|anglais|english|en|dialogue|translation|traduction)$/.test(t)) return "en";
+  if (/(lieu|location|place|map|carte|zone|building)/.test(t)) return "lieu";
+  if (/^(perso|personnage|character|speaker|nom|name)$/.test(t)) return "perso";
+  if (/type/.test(t)) return "type";
+  if (t === "uid") return "uid";
+  if (/^(id|code|#)$/.test(t)) return "id";
+  if (/(chrono|ordre|order)/.test(t)) return "chrono";
+  if (!t && samples.length) {   // pas de titre : on devine au contenu
+    const jp = samples.filter(s => /[぀-ヿ一-鿿]/.test(s)).length;
+    if (jp >= samples.length * .6) return "jp";
+    const en = samples.filter(s => /^[\x20-\x7e\s'’…—–]+$/.test(s) && /[a-z]{3}/i.test(s) && s.includes(" ")).length;
+    if (en >= samples.length * .6) return "en";
+  }
+  return "";
+}
+
+// ---------------------------------------------------------------- texte : nettoyage et comparaison
+// balises propres au jeu (données par le lecteur Lua, ex. <NI> = に)
+function applyTags(s, tags) {
+  s = String(s);
+  if (tags) for (const k in tags) if (s.includes(k)) s = s.split(k).join(tags[k]);
+  return s;
+}
+// morceaux fixes d'une réplique, entre les variables ({…}, <PLAYER>…), pour reconnaître « Nom + texte »
+function fixedParts(s, tags) {
+  return applyTags(s, tags).replace(/<(LINE|PARA|CONT|NEXT|PAGE|NL|BR|DONE|PROMPT)>/gi, "").split(/\{[^{}]*\}|<[^<>]*>/).map(norm).filter(Boolean);
+}
+function cleanTags(s, tags) {
+  return applyTags(s, tags)
+    .replace(/<(LINE|PARA|CONT|NEXT|PAGE|NL|BR)>/gi, "\n")
+    .replace(/\{[^{}]*\}/g, "").replace(/<[A-Z_@][^<>]*>/g, "").replace(/\\n/g, "\n")
+    .replace(/@+(?=.)/g, " ").replace(/@+$/, "")      // fin de chaîne des jeux Pokémon
+    .replace(/[ \t]*\n[ \t]*/g, "\n").replace(/\n{3,}/g, "\n\n").trim();
+}
+// forme comparable : sans espaces, ponctuation de boîte, balises ; katakana -> hiragana
+function norm(s) {
+  return String(s).replace(/\{[^{}]*\}/g, "").replace(/<[^<>]*>/g, "")
+    .replace(/[\s　\/▼▶▷…⋯・、。，．！？!?「」『』()（）\-ー〜~:："'“”]/g, "")
+    .replace(/[ァ-ヶ]/g, c => String.fromCharCode(c.charCodeAt(0) - 0x60));
+}
+function bigrams(s) { const a = [...s], set = new Set(); for (let i = 0; i + 1 < a.length; i++) set.add(a[i] + a[i + 1]); if (a.length === 1) set.add(a[0]); return set; }
+
+
+// ---------------------------------------------------------------- état
+// games : nom du jeu -> {titles:[titres ROM], file, sheet, headerRow, map, clean}
+let games = load("games2", {});
+let gameName = "";          // jeu dont le tableau est chargé
+let P = Object.assign({ jpMode: "kanji", showRaw: "0", showInfos: true, autoTab: true, jpHl: true, enOneLine: true, tagsShow: { lieu: true, perso: true, type: true, id: false },
+  lieuShow: { carte: true, objets: true, dresseurs: true, equipes: false, sorties: false, region: false, sauvages: true }, font: "serif", theme: "", jp: 44, kana: 20, en: 20, hist: 15, histN: 8, showEn: true,
+  emuUrl: "http://127.0.0.1:8890/state" }, load("prefs2", {}));
+let data = [];              // lignes du tableau : {i, row, jp, kanji, en, lieu, perso, type, id, uid, chrono, autres}
+let index = null;           // bigramme -> [i]
+let emu = { title: "", reader: "", error: "", screen: "", connected: false, url: "" };
+let shown = null;           // ce qui est affiché : {i (ligne du tableau) | -1, screen}
+let history = [];           // anciens « shown »
+
+function profile() { return games[gameName] || null; }
+function profileForTitle(t) {
+  if (!t) return null;
+  for (const [n, g] of Object.entries(games)) if ((g.titles || []).includes(t)) return n;
+  return null;
+}
+
+function buildData(rows, prof) {
+  const out = [], hdr = prof.headerRow, titles = hdr ? rows[hdr - 1] || [] : [], tags = prof.tags || null;
+  const cols = Object.entries(prof.map).filter(([, r]) => r).map(([c, r]) => [+c, r]);
+  for (let r = hdr; r < rows.length; r++) {
+    const row = rows[r] || [];
+    const o = { i: out.length, row: r + 1, autres: [] };
+    let any = false;
+    for (const [c, role] of cols) {
+      let v = row[c] == null ? "" : String(row[c]);
+      if (role === "jp" && prof.clean) { o.parts = fixedParts(v, tags); o.vars = o.parts.length > 1 || /\{text_(ram|decimal|bcd)|<(PLAYER|RIVAL|TRAINER|USER|TARGET|ENEMY|PLAY_G)>/i.test(applyTags(v, tags)); }
+      if (prof.clean && (role === "jp" || role === "kanji" || role === "en")) v = cleanTags(v, role === "en" ? null : tags);   // balises du jeu : japonais seulement
+      v = v.trim();
+      if (!v) continue;
+      if (role === "autre") o.autres.push([titles[c] || colLetter(c), v]);
+      else o[role] = o[role] ? o[role] + " · " + v : v;
+      if (role === "jp" || role === "kanji") any = true;
+    }
+    if (any) out.push(o);
+  }
+  return out;
+}
+function buildIndex() {
+  index = new Map();
+  for (const d of data) {
+    d.flat = norm(d.jp || d.kanji || "");
+    const set = bigrams(d.flat); d.nb = set.size;
+    for (const b of set) { let l = index.get(b); if (!l) index.set(b, l = []); l.push(d.i); }
+  }
+}
+
+// tableau du jeu envoyé par script_viewer.lua (config.lua > tableaux, ou Games\<jeu>\tableau.xlsx)
+let srvCache = null;   // {key, file}
+async function serverTable() {
+  const t = emu.connected && emu.tableau;
+  if (!t || !emu.url) return null;
+  const key = t.nom + "|" + t.taille;
+  if (srvCache && srvCache.key === key) return srvCache.file;
+  // reçu en morceaux de 32 Ko (une petite réponse à la fois, comme /state)
+  const base = emu.url.replace(/\/state.*$/, "/tableau?de="), parts = [];
+  let got = 0;
+  while (got < t.taille) {
+    let buf = null;
+    for (let essai = 0; essai < 4 && !buf; essai++) {
+      try { const r = await fetch(base + got, { cache: "no-store" }); if (r.ok) buf = await r.arrayBuffer(); }
+      catch (e) { await new Promise(ok => setTimeout(ok, 200)); }
+    }
+    if (!buf) throw new Error("mGBA did not send the table (" + Math.round(got / 1024) + " KB received out of " + Math.round(t.taille / 1024) + ")");
+    if (!buf.byteLength) break;
+    parts.push(buf); got += buf.byteLength;
+    $("#srcInfo").textContent = t.nom + " — receiving " + Math.round(got * 100 / t.taille) + " %";
+  }
+  if (got !== t.taille) throw new Error("table received incomplete");
+  srvCache = { key, file: new File(parts, t.nom) };
+  return srvCache.file;
+}
+
+// Titres de colonnes standard (voir README) : reconnus tout seuls, sans demander quelle colonne contient quoi.
+// Les autres colonnes (Chronologie, Screenshots, colonnes techniques…) sont ignorées.
+const STD = { jap: "jp", kanji: "kanji", eng: "en", lieu: "lieu", perso: "perso", note: "autre", id: "id" };
+function stdProfile(book) {
+  const names = Object.keys(book.sheets).sort((a, b) => book.sheets[b].length - book.sheets[a].length);
+  for (const n of names) {
+    const rows = book.sheets[n];
+    for (let r = 0; r < Math.min(rows.length, 5); r++) {
+      const t = (rows[r] || []).map(c => String(c).trim().toLowerCase());
+      if (!t.includes("jap")) continue;
+      const map = {};
+      t.forEach((h, c) => { if (STD[h] && !Object.values(map).includes(STD[h])) map[c] = STD[h]; });
+      return { sheet: n, headerRow: r + 1, map, clean: true };
+    }
+  }
+  return null;
+}
+// premier lancement d'un jeu dont le tableau suit les titres standard : associé tout seul
+async function autoGame(title) {
+  try {
+    const file = await serverTable(); if (!file) return false;
+    const std = stdProfile(await readBook(file)); if (!std) return false;
+    const name = emu.reader || title;
+    for (const g of Object.values(games)) if (g.titles) g.titles = g.titles.filter(t => t !== title);
+    games[name] = Object.assign({ titles: [title], tags: emu.tags || null, file: file.name }, std);
+    save("games2", games);
+    await openGame(name, false);
+    return true;
+  } catch (e) { console.error(e); return false; }
+}
+
+// charge le tableau d'un jeu (silencieux si le navigateur demande d'abord un clic)
+async function openGame(name, interactive) {
+  gameName = name || ""; data = []; index = null; vues = null;
+  const prof = profile(), si = $("#srcInfo");
+  if (!prof) { si.textContent = "no table"; si.className = "pill"; lastKey = null; render(); return; }
+  si.textContent = prof.file + " — loading…"; si.className = "pill";
+  try {
+    let file = await serverTable();
+    if (file && prof.file !== file.name) { prof.file = file.name; save("games2", games); }
+    if (!file) {
+    if (!dirHandle && !dirFiles) {
+      const h = await idbGet("dir");
+      if (h && (await h.queryPermission({ mode: "read" }) === "granted" || (interactive && await ensurePerm(h)))) dirHandle = h;
+    }
+    file = (dirHandle || dirFiles) ? await getFile(prof.file).catch(() => null) : null;
+    if (!file && pendingFile && pendingFile.name === prof.file) file = pendingFile;
+    }
+    if (!file) {
+      // le navigateur veut un clic avant de rouvrir le dossier
+      const b = document.createElement("button");
+      b.textContent = "Open “" + prof.file + "”"; b.className = "pri";
+      b.onclick = async () => { const h = await idbGet("dir"); if (h && await ensurePerm(h)) { dirHandle = h; openGame(name, true); } else $("#inFile").click(); };
+      si.textContent = ""; si.className = "pill"; si.append(b);
+      render(); return;
+    }
+    const book = await readBook(file);
+    const std = stdProfile(book);
+    if (std && JSON.stringify(std) !== JSON.stringify({ sheet: prof.sheet, headerRow: prof.headerRow, map: prof.map, clean: prof.clean })) {
+      Object.assign(prof, std); save("games2", games);              // titres standard : ils l'emportent sur l'ancien réglage
+    }
+    const rows = book.sheets[prof.sheet] || Object.values(book.sheets)[0];
+    data = buildData(rows, prof);
+    buildIndex();
+    si.textContent = prof.file + (Object.keys(book.sheets).length > 1 ? " › " + prof.sheet : "") + " — " + data.length + " rows";
+  } catch (e) {
+    console.error(e);
+    si.textContent = "Error: " + e.message; si.className = "pill bad";
+  }
+  lastKey = null; render();
+}
+
+// ---------------------------------------------------------------- reconnaissance de la ligne
+function inOrder(s, parts) {
+  let pos = 0, len = 0;
+  for (const p of parts) { const k = s.indexOf(p, pos); if (k < 0) return false; pos = k + p.length; len += p.length; }
+  return len >= 6;
+}
+function matchScreen(screen, prev, stable) {
+  const s = norm(screen);
+  // 1-2 caractères : souvent le début d'une réplique qui s'écrit (« も » de もりには…) ; cherché seulement
+  // si le texte n'a pas bougé entre deux lectures (vraie réplique courte : « え？ », « わーん！！ »)
+  if (!s || (s.length < 3 && !stable) || !index) return -1;
+  const set = bigrams(s), score = new Map();
+  for (const b of set) for (const i of index.get(b) || []) score.set(i, (score.get(i) || 0) + 1);
+  const pieces = String(screen).split(/\n|\//).map(norm).filter(Boolean);
+  let best = -1, bv = -1;
+  for (const [i, v] of score) {
+    const d = data[i];
+    let sc = v / set.size - 0.0005 * d.nb;
+    if (pieces.length && pieces.every(p => d.flat.includes(p))) sc += 0.25;
+    else if (d.flat.length >= 8 && s.includes(d.flat)) sc = Math.max(sc, 0.6) + 0.25;
+    else if (d.parts && d.parts.length > 1 && inOrder(s, d.parts)) sc = Math.max(sc, 0.6) + 0.2;   // texte + noms du jeu
+    if (prev >= 0 && i >= prev && i <= prev + 3) sc += 0.05;   // les répliques se suivent souvent dans le tableau (combat : 3 lignes de suite)
+    if (sc > bv || (sc === bv && Math.abs(i - prev) < Math.abs(best - prev))) { best = i; bv = sc; }
+  }
+  if (best >= 0 && s.length < 4 && data[best].flat.length > s.length + 2) return -1;   // trop court pour être sûr
+  return bv >= 0.6 ? best : -1;
+}
+
+// ---------------------------------------------------------------- affichage
+function esc(s) { return String(s).replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" })[c]); }
+function jpOf(d) { return P.jpMode === "kana" ? (d.jp || d.kanji || "") : (d.kanji || d.jp || ""); }
+
+// anglais sur une ligne : les mots coupés en fin de ligne (« some-↵thing ») sont recollés
+function enOf(t) { return P.enOneLine ? t.replace(/([a-z])-\s*\n\s*([a-z])/g, "$1$2").replace(/\s*\n\s*/g, " ") : t; }
+// lignes de la réplique visibles dans la boîte du jeu : comparées au texte en kana (mêmes retours à la ligne que les kanji)
+function linesOnScreen(d, screen) {
+  if (!screen || !d.jp) return null;
+  const kana = d.jp.split("\n"), shownLines = jpOf(d).split("\n");
+  if (kana.length < 1 || kana.length !== shownLines.length) return null;
+  const sc = bigrams(norm(screen)), sn = norm(screen);
+  const on = kana.map(l => {
+    const n = norm(l); if (!n) return false;
+    if (n.length < 3) return sn.includes(n);
+    const b = bigrams(n); let k = 0; for (const x of b) if (sc.has(x)) k++;
+    return k / b.size >= 0.6;
+  });
+  // ligne en train de s'écrire : le début de la ligne suivante est déjà à l'écran
+  const last = on.lastIndexOf(true);
+  if (last >= 0 && last + 1 < kana.length && !on[last + 1]) { const n = norm(kana[last + 1]); for (let L = Math.min(n.length, 12); L >= 2; L--) if (sn.endsWith(n.slice(0, L))) { on[last + 1] = true; break; } }
+  // fenêtre fixe de la hauteur de la boîte, à partir de la 1re ligne visible : pendant le défilement (1+2 -> 2 seule -> 2+3)
+  // la ligne qui va s'écrire reste surlignée, au lieu de s'éteindre puis de se rallumer
+  const lo = on.indexOf(true);
+  if (lo < 0) return null;
+  boxRows = Math.max(boxRows, String(screen).split(/\n|\//).length);
+  return kana.map((_, k) => k >= lo && k < lo + boxRows);
+}
+let boxRows = 1;   // nombre de lignes de la boîte du jeu (le plus grand vu à l'écran)
+function hlLines(text, on) {
+  if (!on) return esc(text);
+  return text.split("\n").map((l, k) => on[k] ? '<span class="ln on">' + esc(l) + "</span>" : esc(l)).join("\n");
+}
+function render() {
+  const el = $("#cur");
+  const s = shown;
+  if (!s || (!s.screen && s.i < 0)) {
+    let m;
+    if (!emu.connected) m = "Waiting for mGBA…<br><span class=note>In mGBA: Tools › Scripting › File › Load script › script_viewer.lua (Script Viewer folder)</span>";
+    else if (emu.error) m = esc(emu.error);
+    else m = "No text on screen.";
+    el.innerHTML = '<div class="empty">' + m + "</div>";
+  } else if (s.i >= 0 && data[s.i]) {
+    const d = data[s.i], tags = [];
+    for (const k of ["lieu", "perso", "type", "id"]) if (d[k] && P.tagsShow[k] !== false) tags.push('<span class="tag"><b>' + esc(ROLE_NAME[k]) + "</b>" + esc(d[k]) + "</span>");
+    let h = tags.length ? '<div class="tags">' + tags.join("") + "</div>" : "";
+    const on = P.jpHl ? linesOnScreen(d, s.screen) : null;
+    h += '<div class="jp">' + hlLines(jpOf(d), on) + "</div>";
+    if (P.jpMode === "both" && d.kanji && d.jp && norm(d.kanji) !== norm(d.jp)) h += '<div class="kana">' + hlLines(d.jp, on) + "</div>";
+    if (d.en) h += '<div class="en">' + esc(enOf(d.en)) + "</div>";
+    if (d.autres.length) h += '<div class="other">' + d.autres.map(([t, v]) => "<div><b>" + esc(t) + " :</b> " + esc(v) + "</div>").join("") + "</div>";
+    if (d.vars && s.screen) h += '<div class="kana">' + esc(s.screen) + "</div>";        // réplique avec des noms : le texte réel du jeu
+    else if (P.showRaw === "1" && s.screen) h += '<div class="raw">On screen: ' + esc(s.screen) + "</div>";
+    el.innerHTML = h;
+  } else {
+    el.innerHTML = '<div class="jp">' + esc(s.screen) + "</div>" +
+      (data.length ? '<div class="nomatch">Not found in the table.</div>' : "");
+  }
+  const hs = history.slice(-P.histN).reverse();
+  $("#hist").innerHTML = hs.length ? "<h3>Previously</h3>" + hs.map(x => {
+    const d = x.i >= 0 ? data[x.i] : null;
+    return '<div class="h"' + (x.screen ? ' title="On screen: ' + esc(x.screen) + '"' : "") + '><div class="j">' + esc(d ? jpOf(d) : x.screen) + '</div>' + (d && d.en ? '<div class="e">' + esc(enOf(d.en)) + "</div>" : "") + "</div>";
+  }).join("") : "";
+}
+
+function pushHistory() {
+  if (!shown || (shown.i < 0 && !shown.screen)) return;
+  const last = history[history.length - 1];
+  if (last && (shown.i >= 0 ? last.i === shown.i : last.i < 0 && last.screen === shown.screen)) return;
+  history.push(shown); if (history.length > 100) history.shift();
+}
+
+// nouveau texte à l'écran
+// pendant un combat, les répliques du système (données du jeu : masquer_en_combat) et le texte non reconnu ne sont pas affichés
+function hiddenInBattle(i) {
+  const M = D && D.masquer_en_combat;
+  if (!M || !infos || !infos.battle) return false;
+  if (i < 0) return true;
+  const id = String(data[i].id || "");
+  return M.debut.some(p => id.startsWith(p)) && !M.sauf.includes(id);
+}
+let pendingShort = false;
+let vues = null;   // répliques reconnues par la page (clé : UID, sinon n° de ligne), gardées dans le navigateur
+function cleVue(d) { return String(d.uid || d.row); }
+function marquerVue(i) {
+  if (!vues) vues = new Set(load("vues_" + gameName, []));
+  const k = cleVue(data[i]); if (vues.has(k)) return;
+  vues.add(k); save("vues_" + gameName, [...vues]);
+}
+function estVue(d) {
+  if (!vues) vues = new Set(load("vues_" + gameName, []));
+  return !!d.chrono || vues.has(cleVue(d));
+}
+function onScreen(screen, uid, stable) {
+  const prev = shown && shown.i >= 0 ? shown.i : -1;
+  let i = -1;
+  if (data.length) {
+    if (uid) { i = data.findIndex(d => d.uid === String(uid)); if (i < 0 && /^\d+$/.test(uid)) i = data.findIndex(d => d.row === +uid); }
+    let fuzzy = false;
+    if (i < 0 && screen) {
+      i = matchScreen(screen, prev, stable);
+      // réplique trouvée seulement « à peu près », loin de la précédente : souvent un écran de transition (fin de combat,
+      // carte qui se charge) ; on attend que le même texte soit relu une 2e fois avant de l'afficher
+      if (i >= 0 && !stable && !(prev >= 0 && i >= prev && i <= prev + 3)) {
+        const pieces = String(screen).split(/\n|\//).map(norm).filter(Boolean);
+        fuzzy = !pieces.every(p => data[i].flat.includes(p));
+      }
+    }
+    pendingShort = !stable && !!screen && (fuzzy || (i < 0 && norm(screen).length > 0 && norm(screen).length < 3));
+    if (fuzzy) return;
+  }
+  if (screen && !norm(screen)) { render(); return; }                          // rien de lisible (flèche, points, défilement) : on garde la ligne
+  if (screen && hiddenInBattle(i)) { render(); return; }                       // menus et messages du combat : on garde la dernière réplique
+  if (i >= 0 && i === prev) { shown.screen = screen; render(); return; }       // même ligne, la boîte continue
+  if (!screen && i < 0) { render(); return; }                                    // boîte fermée : on garde la dernière ligne
+  // retour à la ligne d'avant après un écran non reconnu (défilement de la boîte) : l'écran intermédiaire est oublié
+  if (i >= 0 && shown && shown.i < 0 && history.length && history[history.length - 1].i === i) { shown = history.pop(); shown.screen = screen; render(); return; }
+  // le texte continue de s'écrire dans la même boîte : on remplace sans l'ajouter à l'historique
+  // (y compris quand le début, pas encore reconnu, devient une réplique du tableau)
+  const typing = shown && shown.i < 0 && shown.screen && norm(screen).startsWith(norm(shown.screen));
+  if (!typing) pushHistory();
+  shown = { i, screen };
+  if (i >= 0) marquerVue(i);
+  render();
+}
+
+// ---------------------------------------------------------------- lien avec mGBA
+let lastKey = null, urlIdx = 0, fails = 0, lastOk = 0;
+function urls() { return P.emuUrl.split(",").map(s => s.trim()).filter(Boolean); }
+let busy = false;
+async function emuTick() {
+  if (busy) return;
+  busy = true;
+  try { await emuPoll(); } finally { busy = false; }
+}
+async function emuPoll() {
+  const list = urls(); if (!list.length) return;
+  const url = list[urlIdx % list.length];
+  let st;
+  try {
+    const ctl = new AbortController(); const to = setTimeout(() => ctl.abort(), 1500);
+    const r = await fetch(url, { cache: "no-store", signal: ctl.signal }); clearTimeout(to);
+    st = await r.json();
+  } catch (e) {
+    // une réponse ratée de temps en temps (mGBA occupé) ne coupe pas l'affichage : « non connecté » après 2 s sans réponse
+    if (++fails >= 2 && Date.now() - lastOk > 2000) { fails = 0; urlIdx++; if (emu.connected || urlIdx % list.length === 0) setEmu({ connected: false }); }
+    return;
+  }
+  fails = 0; lastOk = Date.now();
+  const title = st.title || (st.current !== undefined ? "crystal_viewer.lua" : "");
+  setEmu({ connected: true, url, title, tags: st.tags && Object.keys(st.tags).length ? st.tags : null, reader: st.reader || (st.current !== undefined ? "crystal_viewer.lua" : ""), journal: st.journal || null, tableau: st.tableau || null, error: st.error || "" });
+  // jeu reconnu : on charge son tableau s'il en a un
+  if (title && title !== emu.lastTitle) {
+    emu.lastTitle = title;
+    const n = profileForTitle(title);
+    if (n !== null ? n !== gameName : gameName) await openGame(n, false);
+    // nouveau jeu avec un tableau : associé tout seul si ses titres sont standard, sinon on demande quelle colonne contient quoi
+    if (n === null && st.tableau && !$("#dSetup").open && !(await autoGame(title))) openSetup();
+  }
+  // tableau modifié (fin de session, Excel…) : relu
+  const tk = st.tableau ? st.tableau.nom + "|" + st.tableau.taille : "";
+  if (gameName && emu.lastTable !== undefined && tk && tk !== emu.lastTable) { emu.lastTable = tk; await openGame(gameName, false); }
+  emu.lastTable = tk;
+  // balises du jeu données par le lecteur : gardées avec le tableau, qui est relu si elles changent
+  const prof = profile();
+  if (prof && st.tags && Object.keys(st.tags).length && JSON.stringify(st.tags) !== JSON.stringify(prof.tags || {})) {
+    prof.tags = st.tags; save("games2", games); await openGame(gameName, false);
+  }
+  onInfos(st.reader || "", st.infos || null);
+  const screen = st.screen || "", uid = st.current && st.current.uid;
+  const key = (st.seq ?? "") + "|" + (uid || "") + "|" + screen + "|" + data.length;
+  if (key === lastKey) { if (pendingShort) onScreen(screen, uid, true); return; }   // texte court resté identique : on le cherche
+  lastKey = key;
+  onScreen(screen, uid);
+}
+function setEmu(o) {
+  Object.assign(emu, o);
+  const p = $("#emuPill"), g = $("#gamePill");
+  if (emu.connected) { p.textContent = "mGBA: connected"; p.className = "pill ok"; }
+  else { p.textContent = "mGBA: not connected"; p.className = "pill bad"; }
+  g.hidden = !emu.connected || !emu.title && !emu.reader;
+  g.textContent = (emu.title ? "Game: " + emu.title : "") + (emu.reader ? " · reader " + emu.reader.replace(/\.lua$/, "") : "");
+  g.className = "pill" + (emu.error ? " bad" : "");
+  g.title = emu.error || "";
+  const j = emu.connected && emu.journal, jp = $("#jPill");
+  jp.hidden = !j;
+  if (j) {
+    jp.textContent = j.erreur ? "Log: error" : "Log: " + j.vues + " line" + (j.vues > 1 ? "s" : "");
+    jp.className = "pill" + (j.erreur ? " bad" : "");
+    jp.title = j.erreur || "Log and captures in " + j.dossier;
+  }
+  if (!emu.connected) { render(); infos = null; appliedKey = null; renderInfos(); }
+}
+
+// ---------------------------------------------------------------- infos du jeu (équipe, combat, lieu, sac)
+// Les données fixes du jeu (noms, attaques, cartes…) sont dans Games\<jeu>\infos.js ; le lecteur Lua envoie la mémoire.
+const TYPE_COL = { 0: "#9a9a78", 1: "#b8382e", 2: "#8f7fe0", 3: "#9a4199", 4: "#d6b85a", 5: "#b39d3a", 6: "#777", 7: "#9aaa22", 8: "#6b5a96",
+  9: "#a8a8c0", 19: "#689a8f", 20: "#ef7a2e", 21: "#5f8be8", 22: "#6cb944", 23: "#e8c51f", 24: "#ef5584", 25: "#86cfcf", 26: "#6d3ff2", 27: "#6d5848" };
+const TIMES = ["matin", "jour", "nuit"];
+const GRASS_RATES = [30, 30, 20, 10, 5, 4, 1], WATER_RATES = [60, 30, 10];
+let D = null, Dname = "", infos = null, tab = load("tab", "lieu"), lastWant = null;
+
+function loadData(reader) {
+  if (reader === Dname) return;
+  Dname = reader; D = null;
+  if (!reader) return;
+  const key = reader;
+  if (window.DONNEES && DONNEES[key]) { D = DONNEES[key]; return; }
+  const sc = document.createElement("script");
+  sc.src = "../Games/" + encodeURIComponent(reader) + "/infos.js";
+  sc.onload = () => { if (Dname === key && window.DONNEES) { D = DONNEES[key] || null; renderInfos(); } };
+  sc.onerror = () => {};
+  document.head.append(sc);
+}
+// Les infos ne changent à l'écran que si elles restent pareilles sur 3 lectures (~0,6 s) : une valeur qui ne dure
+// qu'un instant (mémoire en cours d'écriture quand une boîte s'ouvre…) ne fait ni clignoter le panneau ni passer sur Combat.
+// La position du joueur, elle, suit tout de suite.
+const STABLE = 3;
+let appliedKey = null, candKey = null, candN = 0;
+function onInfos(reader, inf) {
+  loadData(reader);
+  const next = inf && !inf.erreur ? inf : null;
+  const key = JSON.stringify(next, (k, v) => k === "map" && Array.isArray(v) ? v.slice(0, 2) : v);
+  if (key === appliedKey) {                                     // rien de neuf, sauf peut-être la position
+    candKey = null;
+    if (infos && next) { infos.map = next.map; renderInfos(); }
+    return;
+  }
+  if (key !== candKey) { candKey = key; candN = 0; }
+  if (++candN < STABLE && infos) return;
+  appliedKey = key; candKey = null;
+  infos = next;
+  const battle = !!(infos && infos.battle);
+  // l'onglet suit l'écran du jeu : menu des Pokémon → Équipe, sac → Sac, combat → Combat, sinon Lieu.
+  // Un onglet choisi à la main reste jusqu'au prochain changement d'écran.
+  const want = !infos ? null : infos.screen === "equipe" ? "equipe" : infos.screen === "sac" ? "sac" : battle ? "combat" : "lieu";
+  if (want && want !== lastWant && P.autoTab) tab = want;
+  lastWant = want;
+  renderInfos();
+}
+
+const mon = id => (D && D.mons[id - 1]) || { jp: "?", en: "#" + id, types: [], learn: [], evo: [] };
+const move = id => (D && D.moves[id - 1]) || { jp: "?", en: "#" + id, type: 0, power: 0, acc: 0, pp: 0 };
+const item = id => (D && D.items[id - 1]) || { jp: "?", en: "#" + id };
+function tyb(t) { const n = D && D.types[t]; return n ? '<span class="ty" style="background:' + (TYPE_COL[t] || "#888") + '">' + esc(n.jp) + "</span>" : ""; }
+function decName(bytes) { return (bytes || []).map(b => b === 0x50 ? "\0" : (D.charset[b] || "")).join("").split("\0")[0]; }
+function hpBar(hp, max) { const r = max ? hp / max : 0; return '<div class="hp"><i class="' + (r < .2 ? "low" : r < .5 ? "mid" : "") + '" style="width:' + Math.round(r * 100) + '%"></i></div>'; }
+function status(s) {
+  if (!s) return "";
+  if (s & 7) return "ねむり"; if (s & 8) return "どく"; if (s & 16) return "やけど"; if (s & 32) return "こおり"; if (s & 64) return "まひ"; return "";
+}
+// multiplicateur d'une attaque de type a contre un Pokémon de types defs
+function mult(a, defs) {
+  let m = 1;
+  for (const d of new Set(defs)) for (const [x, y, k] of D.chart) if (x === a && y === d) m *= k / 10;
+  return m;
+}
+function multCls(m) { return m >= 4 ? "x4" : m >= 2 ? "x2" : m === 0 ? "x0" : m < 1 ? "x05" : ""; }
+function multTxt(m) { return m === 1 ? "" : "×" + (m === 0.25 ? "¼" : m === 0.5 ? "½" : m); }
+
+function movesTable(ids, pps, vs) {
+  let h = '<table class="mv">';
+  ids.forEach((id, k) => {
+    if (!id) return;
+    const m = move(id), cur = pps ? pps[k] & 63 : null, ups = pps ? pps[k] >> 6 : 0, max = m.pp + Math.floor(m.pp / 5) * ups;
+    const e = vs ? mult(m.type, vs) : 1;
+    h += '<tr><td class="j">' + esc(m.jp) + ' <span class="small">' + esc(m.en) + "</span></td><td>" + tyb(m.type) + "</td>" +
+      '<td class="n">' + (m.power > 1 ? m.power : "—") + (vs && m.power > 0 ? ' <span class="' + multCls(e) + '">' + multTxt(e) + "</span>" : "") + "</td>" +
+      '<td class="n">' + (pps ? cur + "/" + max : m.pp + " PP") + "</td></tr>";
+  });
+  return h + "</table>";
+}
+function nextMoves(sp, lvl) {
+  const l = mon(sp).learn.filter(([lv]) => lv > lvl).slice(0, 3);
+  return l.length ? '<div class="small">Prochaines attaques : ' + l.map(([lv, id]) => "Lv." + lv + " " + esc(move(id).jp)).join(" · ") + "</div>" : "";
+}
+function evoTxt(sp) {
+  const e = mon(sp).evo.filter(x => x[0] === 1);
+  return e.length ? '<div class="small">Evolves at Lv.' + e[0][1] + " into " + esc(mon(e[0][2]).jp) + "</div>" : "";
+}
+
+function pageEquipe() {
+  if (!infos.party.length) return '<p class="small">No Pokémon yet.</p>';
+  return infos.party.map(p => {
+    const m = mon(p.sp), nick = decName(p.nick);
+    return '<div class="mon"><div class="top"><span class="nm dexl" data-sp="' + p.sp + '">' + esc(nick || m.jp) + "</span>" +
+      '<span class="sub">' + (nick && nick !== m.jp ? esc(m.jp) + " · " : "") + esc(m.en) + "</span>" + m.types.map(tyb).join("") +
+      '<span class="lv">Lv.' + p.lvl + " · " + p.hp + "/" + p.maxhp + " PV " + esc(status(p.status)) + "</span></div>" +
+      hpBar(p.hp, p.maxhp) + movesTable(p.moves, p.pp) + nextMoves(p.sp, p.lvl) + evoTxt(p.sp) + "</div>";
+  }).join("");
+}
+function pageCombat() {
+  const b = infos.battle;
+  if (!b) return '<p class="small">No battle in progress.</p>';
+  const e = b.enemy, m = mon(e.sp), types = m.types;
+  // faiblesses du Pokémon adverse
+  const groups = { 4: [], 2: [], 0.5: [], 0.25: [], 0: [] };
+  for (const t of Object.keys(D.types).map(Number)) { if (t === 19 || t === 6) continue; const k = mult(t, types); if (k in groups) groups[k].push(t); }
+  const wk = [["×4", 4], ["×2", 2], ["×½", 0.5], ["×¼", 0.25], ["×0", 0]].filter(([, k]) => groups[k].length)
+    .map(([lab, k]) => '<div class="small"><b>' + lab + "</b> " + groups[k].map(tyb).join("") + "</div>").join("");
+  let h = b.mode === 2 ? trainerHead(b) : '<div class="sec">Wild Pokémon</div>';
+  h +=
+    '<div class="mon"><div class="top"><span class="nm dexl" data-sp="' + e.sp + '">' + esc(m.jp) + '</span><span class="sub">' + esc(m.en) + "</span>" + types.map(tyb).join("") +
+    '<span class="lv">Lv.' + e.lvl + " · " + e.hp + "/" + e.maxhp + " PV " + esc(status(e.status)) + "</span></div>" + hpBar(e.hp, e.maxhp) +
+    '<div class="sec">Ses attaques</div>' + movesTable(e.moves, null) + '<div class="sec">Ses faiblesses</div>' + wk + "</div>";
+  if (b.mine && b.mine.sp) {
+    const me = mon(b.mine.sp);
+    h += '<div class="sec">Your Pokémon: effectiveness against it</div><div class="mon"><div class="top"><span class="nm">' + esc(me.jp) + '</span><span class="sub">' + esc(me.en) + "</span>" +
+      '<span class="lv">Lv.' + b.mine.lvl + " · " + b.mine.hp + "/" + b.mine.maxhp + " PV</span></div>" + hpBar(b.mine.hp, b.mine.maxhp) +
+      movesTable(b.mine.moves, b.mine.pp, types) + "</div>";
+  }
+  return h;
+}
+// dresseur adverse : nom (classe + nom, en japonais) et toute son équipe, lue en mémoire (PV à jour)
+function trainerHead(b) {
+  const T = trainer(b.trainer && b.trainer[0], b.trainer && b.trainer[1]);
+  let h = '<div class="sec">Trainer' + (b.ot_count ? " · " + b.ot_count + " Pokémon" : "") + "</div>";
+  if (T) h += '<div><span class="place">' + esc(T.jp) + '</span> <span class="small">' + esc(T.en) + "</span></div>";
+  const team = b.ot && b.ot.length ? b.ot : T ? T.m.map(([lv, sp]) => ({ sp, lvl: lv })) : [];
+  if (team.length) {
+    let cur = team.findIndex(o => o.sp === b.enemy.sp && o.lvl === b.enemy.lvl && o.hp !== 0);
+    h += '<div class="sec">Their team</div><div class="ot">' + team.map((o, i) => {
+      const m = mon(o.sp), ko = o.maxhp && !o.hp;
+      return '<div class="' + (i === cur ? "cur" : ko ? "ko" : "") + '"><span class="j dexl" data-sp="' + o.sp + '">' + esc(m.jp) + '</span> <span class="small">Lv.' + o.lvl + "</span>" +
+        '<div class="small">' + esc(m.en) + " " + m.types.map(tyb).join("") + "</div>" + (o.maxhp ? hpBar(o.hp, o.maxhp) : "") + "</div>";
+    }).join("") + "</div>";
+  }
+  return h;
+}
+// D.dresseurs : classes[classe-1] = {jp, en} ; trainers[classe-1][numéro-1] = {n (nom JP), en, m: [[niveau, espèce, …]]}
+function trainer(cls, id) {
+  const R = D && D.dresseurs, g = R && R.trainers[cls - 1], t = g && g[id - 1], c = R && R.classes[cls - 1];
+  if (!t) return null;
+  const jp = (c ? c.jp + " " : "") + (t.n !== t.en ? t.n : ""), en = (c ? c.en + " " : "") + t.en;
+  return { jp: jp.trim() || en, en, m: t.m };
+}
+function flagOn(f) { const s = infos.flags; if (!s || f < 0) return false; return (parseInt(s.substr((f >> 3) * 2, 2), 16) >> (f & 7)) & 1; }
+function mapName(key) {
+  const mp = D.maps[key]; if (!mp) return { jp: "?", en: key };
+  const lm = D.landmarks[mp.lm]; let jp = lm ? lm.jp : "";
+  if (/^[０-９]+$/.test(jp)) jp += "ばんどうろ";
+  return { jp, en: mp.name.replace(/([a-z])([A-Z0-9])/g, "$1 $2") };
+}
+// sorties, objets, objets cachés et dresseurs de la carte : points sur la carte + listes (grisé = déjà ramassé / battu)
+function mapEvents(key, mp) {
+  const E = D.evenements && D.evenements[key];
+  if (!E) return { dots: "", lists: "" };
+  const pos = (x, y) => "left:" + ((x * 16 + 8) / (mp.w * 32) * 100) + "%;top:" + ((y * 16 + 8) / (mp.h * 32) * 100) + "%";
+  let dots = "", lists = "";
+  const seen = new Set(), exits = [], L = P.lieuShow;
+  for (const [x, y, d] of E.w || []) {
+    const n = mapName(d);
+    if (L.sorties) dots += '<span class="ev w" style="' + pos(x, y) + '" title="Exit → ' + esc(n.jp + " · " + n.en) + '"></span>';
+    if (d && !seen.has(d)) { seen.add(d); exits.push(n); }
+  }
+  const objs = [];
+  for (const [x, y, it, f] of E.i || []) objs.push([x, y, it, f, "i"]);
+  for (const [x, y, it, f] of E.h || []) objs.push([x, y, it, f, "h"]);
+  for (const [x, y, it, f, k] of L.objets ? objs : []) {
+    const done = flagOn(f), o = item(it);
+    dots += '<span class="ev ' + k + (done ? " done" : "") + '" style="' + pos(x, y) + '" title="' + (k === "h" ? "Hidden item: " : "Item: ") + esc(o.jp + " · " + o.en) + (done ? " (picked up)" : "") + '"></span>';
+  }
+  const pnj = (E.p || []).map(([x, y, s, c]) => ({ x, y, c, name: s.toLowerCase().replace(/_/g, " ").replace(/^./, m => m.toUpperCase()) }));
+  for (const q of L.pnj !== false ? pnj : []) dots += '<span class="ev p' + (q.c ? " c" : "") + '" style="' + pos(q.x, q.y) + '" title="Character: ' + esc(q.name) + (q.c ? " (only at certain moments)" : "") + '"></span>';
+  const trs = (E.t || []).map(([x, y, c, id, f]) => ({ x, y, T: trainer(c, id), done: flagOn(f) })).filter(t => t.T);
+  for (const t of L.dresseurs ? trs : []) dots += '<span class="ev t' + (t.done ? " done" : "") + '" style="' + pos(t.x, t.y) + '" title="Trainer: ' + esc(t.T.jp + " · " + t.T.en) + (t.done ? " (defeated)" : "") + '"></span>';
+  if (objs.length && L.objets) {
+    const left = objs.filter(o => !flagOn(o[3])).length;
+    lists += '<div class="sec">Items · ' + left + " / " + objs.length + ' left to pick up</div><div class="evl">' + objs.map(([, , it, f, k]) => {
+      const o = item(it), done = flagOn(f);
+      return '<span class="' + (done ? "done" : "") + '"><span class="j">' + esc(o.jp) + '</span> <span class="small">' + esc(o.en) + (k === "h" ? " · hidden" : "") + "</span></span>" +
+        '<span class="' + (done ? "ok" : "small") + '">' + (done ? "✓ taken" : "") + "</span>";
+    }).join("") + "</div>";
+  }
+  if (trs.length && L.dresseurs) {
+    const left = trs.filter(t => !t.done).length;
+    lists += '<div class="sec">Trainers · ' + left + " / " + trs.length + ' left to defeat</div><div class="evl">' + trs.map(t =>
+      '<span class="' + (t.done ? "done" : "") + '"><span class="j">' + esc(t.T.jp) + '</span> <span class="small">' + esc(t.T.en) + "</span></span>" +
+      '<span class="' + (t.done ? "ok" : "small") + '">' + (t.done ? "✓ defeated" : "") + "</span>" +
+      (t.done || !L.equipes ? "" : '<div class="team">' + t.T.m.map(([lv, sp]) => '<span><span class="j dexl" data-sp="' + sp + '">' + esc(mon(sp).jp) + "</span> Lv." + lv + "</span>").join("") + "</div>")
+    ).join("") + "</div>";
+  }
+  if (pnj.length && L.pnj !== false) {
+    const cnt = {}; pnj.forEach(q => cnt[q.name] = (cnt[q.name] || 0) + 1);
+    lists += '<div class="sec">Characters · ' + pnj.length + '</div><div class="small">' + Object.entries(cnt).map(([n, k]) => esc(n) + (k > 1 ? " ×" + k : "")).join(" · ") + "</div>";
+  }
+  if (exits.length && L.sorties) lists += '<div class="sec">Exits</div><div class="small">' + exits.map(n => '<span class="j">' + esc(n.jp) + "</span> " + esc(n.en)).join(" · ") + "</div>";
+  return { dots, lists };
+}
+function caught(sp) { const c = infos.caught; return c && (c[(sp - 1) >> 3] >> ((sp - 1) & 7)) & 1; }
+function pageLieu() {
+  const [g, n, x, y] = infos.map, mp = D.maps[g + "." + n];
+  if (!mp) return '<p class="small">Map ' + g + "." + n + " unknown.</p>";
+  const lm = D.landmarks[mp.lm] || null;
+  let place = lm ? lm.jp : "";
+  if (/^[０-９]+$/.test(place)) place += "ばん どうろ";
+  const sub = mp.name.replace(/([a-z])([A-Z0-9])/g, "$1 $2");
+  let h = '<div class="place">' + esc(place) + '</div><div class="small">' + esc(lm ? lm.en : "") + " · " + esc(sub) + " · " + TIMES[infos.time] + "</div>";
+  // carte de l'endroit (dessinée depuis les données du jeu) ; le point est placé à part pour ne pas recharger l'image à chaque pas
+  const ev = mp.w ? mapEvents(g + "." + n, mp) : { dots: "", lists: "" };
+  if (mp.w && P.lieuShow.carte) h += '<div class="map local" style="margin-top:10px"><img alt="" src="../Games/' + encodeURIComponent(Dname) + "/" + D.cartes + g + "." + n + '.png">' + ev.dots + '<span class="me" id="meLocal"></span></div>' +
+    (ev.dots ? '<div class="legend">' + (P.lieuShow.sorties ? '<span><i style="background:#2a7de1;border-radius:2px"></i>exit</span>' : "") +
+      (P.lieuShow.objets ? '<span><i style="background:#f5c400"></i>item</span><span><i style="background:#f5c400;border:2px dashed #6a3d00;width:5px;height:5px"></i>hidden item</span>' : "") +
+      (P.lieuShow.dresseurs ? '<span><i style="background:#e0602a;border-radius:1px"></i>trainer</span>' : "") + (P.lieuShow.pnj !== false ? '<span><i style="background:#2fa84f"></i>character</span>' : "") + "<span>greyed = already done</span></div>" : "") + ev.lists;
+  if (!(mp.w && P.lieuShow.carte)) h += ev.lists;
+  if (P.lieuShow.dialogues !== false && data.length) {
+    const pre = mp.name + ".", rows = data.filter(d => String(d.id || "").startsWith(pre));
+    if (rows.length) {
+      const left = rows.filter(d => !estVue(d));
+      h += '<div class="sec">Dialogue · ' + (rows.length - left.length) + " / " + rows.length + " boxes seen</div>" +
+        (left.length ? '<details class="small"><summary>' + left.length + " not seen yet</summary>" + left.map(d =>
+          '<div class="j">' + esc(jpOf(d).split("\n")[0]) + "…</div>").join("") + "</details>" : '<div class="small ok">✓ all seen</div>');
+    }
+  }
+  if (lm && lm.x && P.lieuShow.region) {
+    const kanto = mp.lm >= D.kanto_first && mp.lm < D.kanto_end;
+    h += '<div class="sec">Region</div><div class="map region"><img alt="Map" src="' + (kanto ? D.regions.kanto : D.regions.johto) + '">' +
+      '<span class="me" style="left:' + ((lm.x - 8) / 160 * 100) + "%;top:" + ((lm.y - 16) / 144 * 100) + '%"></span></div>';
+  }
+  const w = D.wild[g + "." + n];
+  if (w && w.grass && P.lieuShow.sauvages) {
+    const t = Math.min(infos.time, 2), slots = w.grass.slice(t * 7, t * 7 + 7), sum = {};
+    slots.forEach(([lv, sp], k) => { const s = sum[sp] || (sum[sp] = { lv: [], r: 0 }); s.lv.push(lv); s.r += GRASS_RATES[k]; });
+    h += '<div class="sec">In the grass (' + TIMES[t] + ")</div>" + wildList(sum);
+  }
+  if (w && w.water && P.lieuShow.sauvages) {
+    const sum = {}; w.water.forEach(([lv, sp], k) => { const s = sum[sp] || (sum[sp] = { lv: [], r: 0 }); s.lv.push(lv); s.r += WATER_RATES[k]; });
+    h += '<div class="sec">On water</div>' + wildList(sum);
+  }
+  return h;
+}
+function wildList(sum) {
+  return '<div class="wild">' + Object.entries(sum).sort((a, b) => b[1].r - a[1].r).map(([sp, s]) => {
+    const m = mon(+sp), lo = Math.min(...s.lv), hi = Math.max(...s.lv);
+    return '<span><span class="j dexl" data-sp="' + sp + '">' + esc(m.jp) + '</span> <span class="small">' + esc(m.en) + "</span> " + m.types.map(tyb).join("") +
+      (caught(+sp) ? ' <span class="ok" title="Caught">●</span>' : "") + '</span><span class="small">Lv.' + (lo === hi ? lo : lo + "–" + hi) + " · " + s.r + " %</span>";
+  }).join("") + "</div>";
+}
+function pageSac() {
+  const list = (arr) => arr.length ? '<div class="bag">' + arr.map(([id, q]) => '<span><span class="j">' + esc(item(id).jp) + '</span> <span class="small">' + esc(item(id).en) + "</span></span><span>×" + q + "</span>").join("") + "</div>" : '<p class="small">Vide.</p>';
+  return '<div class="small">Money: ' + infos.money.toLocaleString("en-US") + " 円 · Badges: " + infos.badges[0] + " Johto, " + infos.badges[1] + " Kanto · Pokédex: " +
+    infos.dex[0] + " caught, " + infos.dex[1] + " seen</div>" +
+    '<div class="sec">Items</div>' + list(infos.items) + '<div class="sec">Balls</div>' + list(infos.balls) + '<div class="sec">Key items</div>' + list(infos.key_items.map(([id]) => [id, 1]));
+}
+// Pokédex : le Pokémon choisi, sinon celui du combat, sinon le premier de l'équipe
+let dexSel = null;
+function dexCur() { return dexSel || (infos.battle && infos.battle.enemy.sp) || (infos.party[0] && infos.party[0].sp) || 1; }
+function pageDex() {
+  if (!D.dex) return '<p class="small">No Pokédex for this game.</p>';
+  const sp = dexCur(), m = mon(sp), d = D.dex[sp - 1];
+  let h = '<div class="dex"><div class="top"><span class="small">No.' + String(sp).padStart(3, "0") + '</span> <span class="place">' + esc(m.jp) + '</span> <span class="small">' + esc(m.en) + "</span> " +
+    m.types.map(tyb).join("") + (caught(sp) ? ' <span class="ok" title="Caught">● caught</span>' : "") + "</div>";
+  if (d) {
+    const [cat, dm, hg, txt] = d;
+    h += '<div class="cat">' + esc(cat) + "ポケモン　<span class=\"small\">たかさ " + (dm / 10).toFixed(1) + " m · おもさ " + (hg / 10).toFixed(1) + " kg</span></div>" +
+      '<div class="txt">' + esc(txt) + "</div>";
+  }
+  const pre = D.mons.findIndex(x => x.evo.some(e => e[e.length - 1] === sp));
+  h += (pre >= 0 ? '<div class="small">Evolves from <span class="dexl" data-sp="' + (pre + 1) + '">' + esc(D.mons[pre].jp) + "</span></div>" : "") + evoTxt(sp);
+  // où le trouver (herbes et eau ; pas la pêche, les cadeaux ni les œufs)
+  const where = [];
+  for (const [key, w] of Object.entries(D.wild)) {
+    const t = [];
+    if (w.grass) for (let k = 0; k < 3; k++) { let r = 0, lv = []; w.grass.slice(k * 7, k * 7 + 7).forEach(([l, s], i) => { if (s === sp) { r += GRASS_RATES[i]; lv.push(l); } }); if (r) t.push([TIMES[k], r, lv]); }
+    if (w.water) { let r = 0, lv = []; w.water.forEach(([l, s], i) => { if (s === sp) { r += WATER_RATES[i]; lv.push(l); } }); if (r) t.push(["on water", r, lv]); }
+    if (t.length) where.push([mapName(key), t]);
+  }
+  h += '<div class="sec">Where to find it</div>' + (where.length ? '<div class="wild">' + where.map(([n, t]) => {
+    const lv = t.flatMap(x => x[2]), lo = Math.min(...lv), hi = Math.max(...lv);
+    return '<span><span class="j">' + esc(n.jp) + '</span> <span class="small">' + esc(n.en) + '</span></span><span class="small">Lv.' + (lo === hi ? lo : lo + "–" + hi) + " · " +
+      t.map(([k, r]) => k + " " + r + " %").join(", ") + "</span>";
+  }).join("") + "</div>" : '<p class="small">Not in the grass or on water (evolution, fishing, gift, egg…).</p>');
+  return h + "</div>";
+}
+const PAGES = [["equipe", "Party", pageEquipe], ["combat", "Battle", pageCombat], ["lieu", "Location", pageLieu], ["dex", "Pokédex", pageDex], ["sac", "Bag", pageSac]];
+let lastInfosHtml = "";
+// remplace le contenu en gardant les images déjà affichées (sinon elles se rechargent et clignotent)
+function setKeepingImages(el, html) {
+  const old = new Map();
+  for (const im of el.querySelectorAll("img")) old.set(im.getAttribute("src"), im);
+  const t = document.createElement("template");
+  t.innerHTML = html;
+  for (const im of t.content.querySelectorAll("img")) {
+    const o = old.get(im.getAttribute("src"));
+    if (o) { old.delete(im.getAttribute("src")); im.replaceWith(o); }
+  }
+  el.replaceChildren(t.content);
+}
+function renderInfos() {
+  const box = $("#infos"), show = !!(infos && D && P.showInfos);
+  box.hidden = !show; $("#main").classList.toggle("with-infos", show);
+  if (!show) return;
+  const tabs = PAGES.map(([k, t]) => '<button data-tab="' + k + '" class="' + (k === tab ? "on" : "") + (k === "combat" && infos.battle ? " alert" : "") + '">' + t + (k === "combat" && infos.battle ? " ●" : "") + "</button>").join("");
+  if ($("#tabs").innerHTML !== tabs) $("#tabs").innerHTML = tabs;
+  $("#dexBar").hidden = tab !== "dex" || !D.dex;
+  if (tab === "dex" && $("#dexList").dataset.jeu !== Dname) {
+    $("#dexList").innerHTML = D.mons.map((m, i) => '<option value="' + (i + 1) + " " + esc(m.jp) + " " + esc(m.en) + '">').join("");
+    $("#dexList").dataset.jeu = Dname;
+  }
+  let html;
+  try { html = (PAGES.find(p => p[0] === tab) || PAGES[0])[2](); } catch (e) { console.error(e); html = '<p class="small">Error: ' + esc(e.message) + "</p>"; }
+  if (html !== lastInfosHtml) { setKeepingImages($("#ibody"), html); lastInfosHtml = html; }   // pas de clignotement si rien ne change
+  const me = $("#meLocal");
+  if (me && infos.map) {
+    const mp = D.maps[infos.map[0] + "." + infos.map[1]];
+    if (mp && mp.w) { me.style.left = ((infos.map[2] * 16 + 8) / (mp.w * 32) * 100) + "%"; me.style.top = ((infos.map[3] * 16 + 8) / (mp.h * 32) * 100) + "%"; }
+  }
+}
+$("#tabs").onclick = e => { const b = e.target.closest("button"); if (b) { tab = b.dataset.tab; save("tab", tab); renderInfos(); } };
+// un nom de Pokémon cliqué ouvre sa page du Pokédex
+$("#ibody").onclick = e => { const a = e.target.closest("[data-sp]"); if (a && D && D.dex) { dexSel = +a.dataset.sp; tab = "dex"; save("tab", tab); renderInfos(); $("#ibody").scrollTop = 0; } };
+$("#dexQ").oninput = () => {
+  const q = $("#dexQ").value.trim().toLowerCase(); if (!q || !D) return;
+  let i = /^\d+/.test(q) ? parseInt(q) - 1 : D.mons.findIndex(m => m.jp === q || m.en.toLowerCase() === q);
+  if (i < 0) { const c = D.mons.filter(m => m.jp.startsWith(q) || m.en.toLowerCase().startsWith(q)); if (c.length === 1) i = D.mons.indexOf(c[0]); }
+  if (i >= 0 && i < D.mons.length) { dexSel = i + 1; renderInfos(); }
+};
+$("#dexQ").onfocus = () => $("#dexQ").select();
+$("#dexAuto").onclick = () => { dexSel = null; $("#dexQ").value = ""; renderInfos(); };
+
+// ---------------------------------------------------------------- réglages
+function applyPrefs() {
+  const root = document.documentElement;
+  for (const k of ["jp", "kana", "en", "hist"]) root.style.setProperty("--" + k, P[k] + "px");
+  root.style.setProperty("--dot", P.dotSize || 1);
+  if (P.theme) root.dataset.theme = P.theme; else delete root.dataset.theme;
+  if (P.font === "sans") root.dataset.sans = ""; else delete root.dataset.sans;
+  document.body.classList.toggle("hide-en", !P.showEn);
+  $("#bEn").classList.toggle("on", P.showEn);
+  save("prefs2", P);
+}
+function initSettings() {
+  for (const el of document.querySelectorAll(".sz")) {
+    const k = el.dataset.v, span = document.createElement("span");
+    const mk = (t, d) => { const b = document.createElement("button"); b.textContent = t; b.onclick = () => { P[k] = Math.max(8, Math.min(140, P[k] + d)); span.textContent = P[k]; applyPrefs(); }; return b; };
+    span.textContent = P[k]; el.append(mk("−", -2), span, mk("+", 2));
+  }
+  for (const id of ["jpMode", "showRaw", "font", "theme"]) { $("#" + id).value = P[id]; $("#" + id).onchange = e => { P[id] = e.target.value; applyPrefs(); render(); }; }
+  $("#showInfos").value = P.showInfos ? "1" : "0"; $("#showInfos").onchange = e => { P.showInfos = e.target.value === "1"; applyPrefs(); renderInfos(); };
+  $("#jpHl").value = P.jpHl ? "1" : "0"; $("#jpHl").onchange = e => { P.jpHl = e.target.value === "1"; applyPrefs(); render(); };
+  $("#enOneLine").value = P.enOneLine ? "1" : "0"; $("#enOneLine").onchange = e => { P.enOneLine = e.target.value === "1"; applyPrefs(); render(); };
+  for (const cb of document.querySelectorAll("#lieuShow input")) {
+    cb.checked = P.lieuShow[cb.dataset.k] !== false;
+    cb.onchange = () => { P.lieuShow = Object.assign({}, P.lieuShow, { [cb.dataset.k]: cb.checked }); applyPrefs(); renderInfos(); };
+  }
+  for (const cb of document.querySelectorAll("#tagsShow input")) {
+    cb.checked = P.tagsShow[cb.dataset.k] !== false;
+    cb.onchange = () => { P.tagsShow = Object.assign({}, P.tagsShow, { [cb.dataset.k]: cb.checked }); applyPrefs(); render(); };
+  }
+  $("#dotSize").value = String(P.dotSize || 1); $("#dotSize").onchange = e => { P.dotSize = +e.target.value; applyPrefs(); };
+  $("#autoTab").value = P.autoTab ? "1" : "0"; $("#autoTab").onchange = e => { P.autoTab = e.target.value === "1"; lastWant = null; applyPrefs(); };
+  $("#histN").value = P.histN; $("#histN").onchange = e => { P.histN = +e.target.value || 0; applyPrefs(); render(); };
+  $("#emuUrl").value = P.emuUrl; $("#emuUrl").onchange = e => { P.emuUrl = e.target.value; urlIdx = 0; applyPrefs(); };
+}
+// ---------------------------------------------------------------- assistant « Nouveau jeu »
+let book = null, pendingFile = null, setupFile = "", editing = null;
+async function showFiles() {
+  const box = $("#files"); box.innerHTML = "";
+  const names = await listDir();
+  $("#dirName").textContent = dirHandle ? "Folder: " + dirHandle.name : dirFiles ? "Folder chosen" : "";
+  if (!names.length && (dirHandle || dirFiles)) box.innerHTML = '<span class="note">No table (.xlsx, .xlsm, .csv, .txt…) in this folder.</span>';
+  for (const n of names) {
+    const b = document.createElement("button"); b.textContent = n; if (n === setupFile) b.classList.add("sel");
+    b.onclick = async () => { for (const x of box.children) x.classList.remove("sel"); b.classList.add("sel"); await pickFile(await getFile(n)); };
+    box.append(b);
+  }
+}
+async function pickFile(file, keep) {
+  if (!file) return;
+  setupFile = file.name; pendingFile = file;
+  $("#setupMsg").textContent = "Reading " + file.name + "…";
+  try { book = await readBook(file); } catch (e) { $("#setupMsg").innerHTML = '<span class="err">Unable to read this file: ' + esc(e.message) + "</span>"; return; }
+  $("#setupMsg").textContent = "";
+  const s = $("#sheet"); s.innerHTML = "";
+  const names = Object.keys(book.sheets);
+  // feuille par défaut : celle qui a le plus de lignes
+  const big = names.reduce((a, b) => (book.sheets[b].length > book.sheets[a].length ? b : a), names[0]);
+  for (const n of names) s.append(new Option(n + " (" + book.sheets[n].length + " rows)", n, false, keep ? n === keep.sheet : n === big));
+  $("#stSheet").hidden = false;
+  $("#hdrRow").value = keep ? keep.headerRow : guessHeaderRow(book.sheets[s.value]);
+  if (!keep && !$("#gName").value) $("#gName").value = file.name.replace(/\.[^.]+$/, "").replace(/[_-]+/g, " ");
+  showMap(keep && keep.map);
+}
+function showMap(prevMap) {
+  const rows = book.sheets[$("#sheet").value] || [], hdr = +$("#hdrRow").value || 0;
+  const titles = hdr ? rows[hdr - 1] || [] : [];
+  const ncol = Math.max(titles.length, ...rows.slice(hdr, hdr + 50).map(r => r.length), 0);
+  const body = $("#mapBody"); body.innerHTML = "";
+  for (let c = 0; c < ncol; c++) {
+    const samples = []; for (let r = hdr; r < rows.length && samples.length < 12; r++) { const v = rows[r] && rows[r][c]; if (v !== "" && v != null) samples.push(String(v)); }
+    if (!samples.length && !String(titles[c] || "").trim()) continue;
+    const tr = document.createElement("tr");
+    const sel = document.createElement("select"); sel.dataset.c = c;
+    for (const [v, t] of ROLES) sel.append(new Option(t, v));
+    sel.value = prevMap ? (prevMap[c] || "") : guessRole(titles[c], samples);
+    const ex = samples.find(s => s.length > 6) || samples[0] || "";
+    tr.innerHTML = "<td>" + colLetter(c) + "</td><td>" + esc(titles[c] || "") + "</td><td></td><td class=s title=\"" + esc(ex) + "\">" + esc(ex) + "</td>";
+    tr.children[2].append(sel); body.append(tr);
+  }
+  // un seul « Japonais » et un seul « Anglais » devinés : on garde le premier
+  if (!prevMap) for (const role of ["jp", "kanji", "en", "uid", "id", "chrono"]) {
+    let seen = false; for (const s of body.querySelectorAll("select")) if (s.value === role) { if (seen) s.value = ""; seen = true; }
+  }
+  $("#stMap").hidden = false; $("#stName").hidden = false;
+  checkSetup();
+}
+function checkSetup() {
+  const roles = [...document.querySelectorAll("#mapBody select")].map(s => s.value);
+  const ok = (roles.includes("jp") || roles.includes("kanji")) && $("#gName").value.trim();
+  $("#bSave").disabled = !ok;
+  $("#setupMsg").textContent = ok ? "" : (!$("#gName").value.trim() ? "Give the game a name." : "Specify at least the Japanese or Kanji column.");
+}
+function openSetup() {
+  const edit = !!profile();
+  editing = edit ? gameName : null;
+  $("#setupTitle").textContent = edit ? "Game table: " + gameName : "Link a table";
+  $("#setupFor").textContent = emu.title ? "Game running in mGBA: " + emu.title + ". This table will open automatically each time this game is launched."
+    : "mGBA is not connected: start the game and script_viewer.lua first so the table can be linked to it.";
+  $("#gName").value = edit ? gameName : (emu.title && emu.title !== "crystal_viewer.lua" ? emu.title : "");
+  for (const id of ["stSheet", "stMap", "stName"]) $("#" + id).hidden = true;
+  $("#files").innerHTML = ""; book = null; setupFile = edit ? profile().file : "";
+  $("#clean").checked = edit ? profile().clean !== false : true;
+  $("#bSave").disabled = true; $("#setupMsg").textContent = "";
+  $("#bUnlink").hidden = !edit;
+  $("#dSetup").showModal();
+  if (emu.tableau) {
+    $("#files").innerHTML = '<button class="sel">' + esc(emu.tableau.nom) + '</button> <span class="note">sent by mGBA (config.lua)</span>';
+    serverTable().then(f => pickFile(f, edit ? profile() : null)).catch(e => { $("#setupMsg").textContent = e.message; });
+    return;
+  }
+  showFiles();
+  if (edit) getFile(profile().file).then(f => f ? pickFile(f, profile()) : (pendingFile && pendingFile.name === profile().file && pickFile(pendingFile, profile()))).catch(() => {});
+}
+async function saveSetup() {
+  const name = $("#gName").value.trim();
+  const map = {}; for (const s of document.querySelectorAll("#mapBody select")) if (s.value) map[s.dataset.c] = s.value;
+  const old = editing ? games[editing] : games[name];
+  if (editing && editing !== name) delete games[editing];
+  const titles = new Set(old && old.titles || []);
+  if (emu.title) {   // un titre de ROM ne va qu'à un seul jeu
+    for (const g of Object.values(games)) if (g.titles) g.titles = g.titles.filter(t => t !== emu.title);
+    titles.add(emu.title);
+  }
+  games[name] = { titles: [...titles], tags: emu.tags || (old && old.tags) || null, file: setupFile, sheet: $("#sheet").value, headerRow: +$("#hdrRow").value || 0, map, clean: $("#clean").checked };
+  save("games2", games);
+  $("#dSetup").close();
+  await openGame(name, true);
+}
+function unlink() {
+  const g = profile();
+  if (g && emu.title) g.titles = (g.titles || []).filter(t => t !== emu.title);
+  save("games2", games);
+  $("#dSetup").close();
+  openGame("", false);
+}
+
+// ---------------------------------------------------------------- événements
+$("#bSetup").onclick = openSetup;
+$("#bUnlink").onclick = unlink;
+$("#bSet").onclick = () => $("#dSet").showModal();
+for (const b of document.querySelectorAll("[data-close]")) b.onclick = () => b.closest("dialog").close();
+$("#bDir").onclick = async () => {
+  if (window.showDirectoryPicker) {
+    try { dirHandle = await showDirectoryPicker({ id: "scripts", mode: "read" }); dirFiles = null; idbSet("dir", dirHandle); showFiles(); }
+    catch (e) { if (e.name !== "AbortError") $("#setupMsg").textContent = e.message; }
+  } else $("#inDir").click();
+};
+$("#inDir").onchange = e => { dirFiles = e.target.files; dirHandle = null; showFiles(); };
+$("#bFile").onclick = () => $("#inFile").click();
+$("#inFile").onchange = async e => {
+  const f = e.target.files[0]; e.target.value = "";
+  if (!f) return;
+  if ($("#dSetup").open) { $("#files").innerHTML = '<button class="sel">' + esc(f.name) + "</button>"; pickFile(f); }
+  else { pendingFile = f; const p = profile(); if (p && p.file !== f.name) { p.file = f.name; save("games2", games); } openGame(gameName, true); }
+};
+$("#sheet").onchange = () => { $("#hdrRow").value = guessHeaderRow(book.sheets[$("#sheet").value]); showMap(); };
+$("#hdrRow").onchange = () => showMap();
+$("#mapBody").onchange = checkSetup;
+$("#gName").oninput = checkSetup;
+$("#bSave").onclick = saveSetup;
+$("#bEn").onclick = () => { P.showEn = !P.showEn; applyPrefs(); };
+document.addEventListener("keydown", e => {
+  if (e.target.matches("input,select,textarea") || document.querySelector("dialog[open]")) return;
+  if (e.key === "e" || e.key === "E") $("#bEn").click();
+});
+
+initSettings(); applyPrefs(); render();
+setInterval(emuTick, 250); emuTick();
+</script>
+</body>
+</html>
